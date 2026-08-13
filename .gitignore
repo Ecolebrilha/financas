@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+*.log
+
+# banco SQLite local
+backend/prisma/dev.db
+backend/prisma/dev.db-journal
+
+# config local do Claude Code (não é do projeto)
+.claude/settings.local.json

@@ -1,0 +1,11 @@
+const PAYMENT_TYPES = ['PIX', 'CREDIT_CARD', 'DEBIT_CARD', 'VOUCHER', 'OTHER'];
+
+const INCOME_TYPES = [
+  'SALARY',
+  'BENEFIT',
+  'PREVIOUS_BALANCE',
+  'SAVINGS_YIELD',
+  'OTHER',
+];
+
+module.exports = { PAYMENT_TYPES, INCOME_TYPES };

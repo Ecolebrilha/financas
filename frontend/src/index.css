@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #f9f9f7;
+  color: #0b0b0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #0d0d0d;
+    color: #ffffff;
+  }
+}
+
+/* O menu nativo do <select> é renderizado pelo SO (no Windows/Chrome
+   sempre com fundo branco) e não segue o dark mode da página — mas o
+   texto das <option> herdava o "color: #fff" do body no dark mode,
+   ficando branco sobre branco (invisível). Força cor escura + fundo
+   branco nas opções e sinaliza color-scheme claro só pro popup nativo,
+   sem afetar a cor do próprio campo fechado (isso é controlado pelas
+   classes dark:text-* do componente). */
+select {
+  color-scheme: light;
+}
+
+select option {
+  color: #0b0b0b;
+  background-color: #ffffff;
+}
+
+/* esconde as setas do input number em telas que não precisam delas */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,0 +1,211 @@
+// Schema do sistema de controle financeiro pessoal/familiar.
+// Por padrão usa SQLite (zero infra, roda local). Para usar Postgres,
+// troque o provider abaixo para "postgresql" e ajuste DATABASE_URL no .env
+// (ver README para o passo a passo).
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite não suporta enums nativos no Prisma, então PaymentType e IncomeType
+// são strings validadas na camada de aplicação (ver src/constants.js):
+// PaymentType:  PIX | CREDIT_CARD | DEBIT_CARD | VOUCHER | OTHER
+// IncomeType:   SALARY | BENEFIT | PREVIOUS_BALANCE | SAVINGS_YIELD | OTHER
+
+model Person {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  // Marca a pessoa "dona" do app (você) — usado pro Painel calcular saldo
+  // pessoal (sua receita - só os SEUS gastos, não da família toda, já que
+  // o resto é reembolsado, não é dinheiro seu de fato). Só uma pessoa
+  // deveria ter isSelf=true.
+  isSelf    Boolean  @default(false)
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  expenses          Expense[]
+  incomes           Income[]
+  recurringExpenses RecurringExpense[]
+  recurringIncomes  RecurringIncome[]
+  payments          Payment[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?
+  icon      String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
+}
+
+model PaymentMethod {
+  id         String      @id @default(cuid())
+  name       String
+  type       String
+  // Dia de vencimento da fatura (1-31), relevante para cartões de crédito.
+  dueDay     Int?
+  // Dia de fechamento da fatura (opcional). Se não informado, assume-se
+  // que a fatura fecha no próprio dia do vencimento (compras após esse dia
+  // caem na fatura do mês seguinte).
+  closingDay Int?
+  // Controle de limite (cartões de crédito e também o Flash/VA-VR, que na
+  // prática funciona como um "cartão" pra esse fim, só não parcela).
+  // Mantidos manualmente pelo usuário — não são derivados dos gastos
+  // lançados, já que o extrato real do cartão inclui coisas que o app não
+  // rastreia (encargos, parcelas antigas, etc). limite disponível é sempre
+  // creditLimit - usedLimit, calculado na hora de exibir.
+  creditLimit Float?
+  usedLimit   Float?
+  color      String?
+  active     Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
+}
+
+model RecurringExpense {
+  id              String    @id @default(cuid())
+  description     String
+  amount          Float
+  personId        String
+  person          Person    @relation(fields: [personId], references: [id])
+  paymentMethodId String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  categoryId      String
+  category        Category  @relation(fields: [categoryId], references: [id])
+  // Dia do mês em que o lançamento deve ser gerado.
+  dayOfMonth      Int       @default(1)
+  active          Boolean   @default(true)
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  expenses Expense[]
+}
+
+model Expense {
+  id              String   @id @default(cuid())
+  description     String
+  amount           Float
+  date            DateTime
+
+  // Opcional: quando a cobrança real vai cair num período bem diferente
+  // da data da compra (ex: compra hoje que só entra na fatura de
+  // dezembro). Se preenchido, sobrepõe `date` só pros cálculos de
+  // período do Painel e de fatura do cartão — `date` continua sendo a
+  // data real da compra, pra histórico.
+  billingDate     DateTime?
+
+  // Preenchido quando essa despesa individual já foi quitada (a pessoa te
+  // pagou a parte dela, ou você pagou quem tinha que pagar, no caso do
+  // cartão do tio). Substitui a lógica antiga de quitação em lote por
+  // fatura inteira — agora cada compra é marcada como paga uma a uma.
+  settledAt       DateTime?
+
+  personId        String
+  person          Person   @relation(fields: [personId], references: [id])
+
+  paymentMethodId String
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  categoryId      String
+  category        Category @relation(fields: [categoryId], references: [id])
+
+  notes           String?
+
+  // Parcelamento: linhas de uma mesma compra parcelada compartilham o
+  // installmentGroupId. installmentNumber/installmentTotal ex: 2/6.
+  installmentGroupId String?
+  installmentNumber  Int?
+  installmentTotal   Int?
+
+  // Preenchido quando o gasto foi gerado automaticamente a partir de um
+  // template de gasto recorrente/fixo.
+  recurringTemplateId String?
+  recurringTemplate   RecurringExpense? @relation(fields: [recurringTemplateId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([personId])
+  @@index([paymentMethodId])
+  @@index([categoryId])
+  @@index([installmentGroupId])
+  @@index([recurringTemplateId])
+}
+
+model Income {
+  id          String     @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime
+  personId    String?
+  person      Person?    @relation(fields: [personId], references: [id])
+  type        String
+  notes       String?
+  createdAt   DateTime   @default(now())
+
+  // Preenchido quando a receita foi gerada automaticamente a partir de um
+  // template de receita recorrente/fixa (salário, Flash, etc).
+  recurringIncomeId String?
+  recurringIncome    RecurringIncome? @relation(fields: [recurringIncomeId], references: [id])
+
+  @@index([date])
+  @@index([recurringIncomeId])
+}
+
+// Abatimento avulso: a pessoa adianta um valor da dívida geral dela sem
+// estar quitando uma compra específica (ex: "toma aí 100 reais" via Pix,
+// sem dizer qual gasto isso cobre). Diferente do settledAt do Expense
+// (que quita item a item), isso só desconta do total pendente da pessoa
+// em "Gasto por pessoa" — não risca nenhum gasto específico como pago.
+model Payment {
+  id        String   @id @default(cuid())
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id])
+  amount    Float
+  date      DateTime
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([personId])
+  @@index([date])
+}
+
+model RecurringIncome {
+  id          String    @id @default(cuid())
+  description String
+  amount      Float
+  personId    String?
+  person      Person?   @relation(fields: [personId], references: [id])
+  type        String
+  // Dia do mês em que a receita deve ser gerada (ignorado se
+  // lastBusinessDay for true).
+  dayOfMonth  Int       @default(1)
+  // Pro caso do Flash: "todo último dia útil do mês" — ignora dayOfMonth e
+  // usa a última segunda-a-sexta do mês (não considera feriados).
+  lastBusinessDay Boolean   @default(false)
+  active      Boolean   @default(true)
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  incomes Income[]
+}
