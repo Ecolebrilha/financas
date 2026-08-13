@@ -1,17 +1,21 @@
 const prisma = require('../db');
-const { nextDueDate, invoiceDueDateForExpense, addMonths, sameDay, PRIMARY_CYCLE_DAY } = require('./dates');
+const { nextDueDate, invoiceDueDateForExpense, PRIMARY_CYCLE_DAY } = require('./dates');
 const { round2 } = require('./aggregate');
-const { billingDateWhere, effectiveDate } = require('./billing');
+const { effectiveDate } = require('./billing');
 
 // Para cada cartão de crédito ativo (e também Pix/Flash, que não têm
 // fatura de verdade mas funcionam do mesmo jeito pra fins de "quem deve
-// quanto"), calcula o próximo vencimento, quanto já está lançado no
-// período em aberto, e a divisão por pessoa desse período — com a lista
-// de compras individuais de cada um (settledAt marca se aquela compra
+// quanto"), calcula o vencimento e quanto está pendente — com a lista de
+// compras individuais de cada um (settledAt marca se aquela compra
 // específica já foi quitada), pra saber exatamente o que cobrar de cada
-// um quando o vencimento chegar perto. Pix/Flash não têm dia de
-// vencimento cadastrado, então usam o ciclo padrão da casa (dia 10) só
-// pra agrupar no mesmo período que os outros cartões.
+// um. Pix/Flash não têm dia de vencimento cadastrado, então usam o ciclo
+// padrão da casa (dia 10) só pra agrupar no mesmo período que os outros
+// cartões.
+//
+// A fatura mostrada é a mais antiga que ainda tem algo pendente — não
+// necessariamente a próxima a vencer. Sem isso, assim que a data de
+// vencimento passasse o app pularia direto pra fatura seguinte e as
+// compras ainda não quitadas simplesmente sumiriam da lista.
 async function getCardInvoices(referenceDate = new Date()) {
   const cards = await prisma.paymentMethod.findMany({
     where: { type: { in: ['CREDIT_CARD', 'PIX', 'VOUCHER'] }, active: true },
@@ -21,15 +25,28 @@ async function getCardInvoices(referenceDate = new Date()) {
   const results = [];
   for (const card of cards) {
     const dueDay = card.dueDay || PRIMARY_CYCLE_DAY;
-    const due = nextDueDate(referenceDate, dueDay);
-    const windowStart = addMonths(due, -2);
+    const upcoming = nextDueDate(referenceDate, dueDay);
 
     const expenses = await prisma.expense.findMany({
-      where: { paymentMethodId: card.id, ...billingDateWhere(windowStart, new Date(due.getTime() + 1)) },
+      where: { paymentMethodId: card.id },
       include: { person: true },
       orderBy: { date: 'desc' },
     });
-    const matching = expenses.filter((e) => sameDay(invoiceDueDateForExpense(effectiveDate(e), dueDay), due));
+
+    const byDue = new Map();
+    for (const e of expenses) {
+      const dueDate = invoiceDueDateForExpense(effectiveDate(e), dueDay);
+      const key = dueDate.getTime();
+      if (!byDue.has(key)) byDue.set(key, { due: dueDate, items: [] });
+      byDue.get(key).items.push(e);
+    }
+
+    const openGroups = Array.from(byDue.values())
+      .filter((g) => g.due <= upcoming && g.items.some((e) => !e.settledAt))
+      .sort((a, b) => a.due - b.due);
+
+    const due = openGroups.length > 0 ? openGroups[0].due : upcoming;
+    const matching = openGroups.length > 0 ? openGroups[0].items : byDue.get(upcoming.getTime())?.items || [];
     const total = matching.reduce((s, e) => s + e.amount, 0);
 
     const byPersonMap = new Map();
