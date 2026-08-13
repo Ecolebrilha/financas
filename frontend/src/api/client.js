@@ -1,10 +1,37 @@
-const BASE = '/api';
+// Em produção (frontend e backend em domínios diferentes), aponte
+// VITE_API_URL pra URL pública da API. Local, usa o proxy do Vite (/api).
+const BASE = import.meta.env.VITE_API_URL || '/api';
+
+const AUTH_KEY = 'financas_auth';
+
+export function getAuthToken() {
+  return localStorage.getItem(AUTH_KEY) || '';
+}
+
+export function setAuthToken(token) {
+  localStorage.setItem(AUTH_KEY, token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(AUTH_KEY);
+}
 
 async function request(path, options = {}) {
+  const token = getAuthToken();
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     ...options,
   });
+  if (res.status === 401) {
+    clearAuthToken();
+    // Avisa a UI (ver AuthGate) que precisa pedir a senha de novo, sem
+    // forçar recarregar a página nem acoplar esse módulo ao React.
+    window.dispatchEvent(new Event('financas:unauthorized'));
+    throw new Error('Senha incorreta ou expirada');
+  }
   if (!res.ok) {
     let message = `Erro ${res.status}`;
     try {

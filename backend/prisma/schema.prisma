@@ -1,10 +1,9 @@
 // Schema do sistema de controle financeiro pessoal/familiar.
-// Por padrão usa SQLite (zero infra, roda local). Para usar Postgres,
-// troque o provider abaixo para "postgresql" e ajuste DATABASE_URL no .env
-// (ver README para o passo a passo).
+// Postgres (Neon) — mesmo banco usado local e em produção, pra você
+// acessar os mesmos dados de qualquer lugar.
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

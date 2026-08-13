@@ -4,15 +4,18 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AppDataProvider } from './context/AppDataContext';
 import { ToastProvider } from './context/ToastContext';
+import AuthGate from './components/AuthGate';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <ToastProvider>
-        <AppDataProvider>
-          <App />
-        </AppDataProvider>
+        <AuthGate>
+          <AppDataProvider>
+            <App />
+          </AppDataProvider>
+        </AuthGate>
       </ToastProvider>
     </BrowserRouter>
   </React.StrictMode>,

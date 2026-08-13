@@ -49,11 +49,15 @@ Pré-requisito: Node.js 18+ instalado.
 
 ### 1. Backend
 
+Precisa de um banco Postgres (local ou gratuito na nuvem, ex:
+[neon.tech](https://neon.tech) — é o que este projeto usa em produção).
+
 ```bash
 cd backend
 npm install
 copy .env.example .env        # (no Windows; no Mac/Linux: cp .env.example .env)
-npm run prisma:migrate        # cria o banco SQLite (dev.db) e as tabelas
+# edite o .env com a DATABASE_URL do seu Postgres
+npm run prisma:migrate        # cria as tabelas
 npm run seed                  # cadastra as 4 pessoas, categorias e cartões padrão
 npm run dev                   # sobe a API em http://localhost:3001
 ```
@@ -108,14 +112,19 @@ navegador (ou no celular, pela rede local — o terminal do Vite mostra um
 endereço tipo `http://192.168.x.x:5173`, desde que celular e computador
 estejam na mesma rede Wi-Fi).
 
-## Trocar SQLite por Postgres (opcional)
+## Hospedagem (deploy)
 
-1. Em `backend/prisma/schema.prisma`, troque `provider = "sqlite"` por
-   `provider = "postgresql"`.
-2. Em `backend/.env`, aponte `DATABASE_URL` pro seu Postgres, ex:
-   `postgresql://usuario:senha@localhost:5432/financas?schema=public`.
-3. Rode `npm run prisma:migrate` de novo pra recriar as tabelas nesse banco
-   (e `npm run seed` / `npm run import:xlsx` se quiser repopular os dados).
+- **Banco**: Postgres no [Neon](https://neon.tech) (plano free) — mesmo
+  banco usado local e em produção, pra ver os mesmos dados de qualquer
+  lugar.
+- **Backend**: [Render](https://render.com), Web Service apontando pra
+  pasta `backend`, com `DATABASE_URL` configurada nas variáveis de
+  ambiente. Build command: `npm install && npx prisma migrate deploy`.
+  Start command: `npm start`. Plano free "dorme" depois de ~15min sem
+  uso (a primeira requisição depois disso demora ~1min pra acordar).
+- **Frontend**: [Vercel](https://vercel.com), apontando pra pasta
+  `frontend`. Configure a env var `VITE_API_URL` com a URL pública do
+  backend no Render (ex: `https://financas-api.onrender.com/api`).
 
 ## Lógica de fatura/vencimento de cartão
 

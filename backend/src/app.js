@@ -10,12 +10,15 @@ const recurringRouter = require('./routes/recurring');
 const recurringIncomesRouter = require('./routes/recurringIncomes');
 const paymentsRouter = require('./routes/payments');
 const summaryRouter = require('./routes/summary');
+const requireAuth = require('./middleware/auth');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+app.use('/api', requireAuth);
 
 app.use('/api/people', peopleRouter);
 app.use('/api/categories', categoriesRouter);
