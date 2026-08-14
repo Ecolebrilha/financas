@@ -58,10 +58,25 @@ function SettleToggle({ expense, onChanged }) {
 // Abatimento: a pessoa adianta um valor sem estar quitando uma compra
 // específica (ex: Pix avulso "toma aí 100 reais"). Só desconta do total
 // pendente dela aqui — não risca nenhum gasto como pago.
-function PaymentForm({ personId, onSaved, onCancel }) {
+//
+// A data decide em qual período o abatimento entra (mesma lógica de
+// fatura do resto do app) — por isso o padrão é "hoje" só quando hoje
+// cai dentro do período que você está vendo no Painel; se você estiver
+// olhando um período que já fechou, sugere o último dia dele, senão o
+// abatimento parece "sumir" ao cair sozinho no período seguinte.
+function defaultPaymentDate(period) {
+  const today = new Date();
+  if (!period) return toInputDate(today);
+  const start = new Date(period.start);
+  const end = new Date(period.end);
+  if (today >= start && today <= end) return toInputDate(today);
+  return toInputDate(today < start ? start : end);
+}
+
+function PaymentForm({ personId, period, onSaved, onCancel }) {
   const showToast = useToast();
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(toInputDate(new Date()));
+  const [date, setDate] = useState(() => defaultPaymentDate(period));
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -86,6 +101,7 @@ function PaymentForm({ personId, onSaved, onCancel }) {
         <NumberField label="Valor (R$)" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required autoFocus />
         <DateField label="Data" value={date} onChange={(e) => setDate(e.target.value)} required />
       </div>
+      <p className="text-xs text-muted -mt-1">A data decide em qual período o abatimento entra.</p>
       <TextField label="Observação (opcional)" placeholder="Ex: Pix adiantado" value={notes} onChange={(e) => setNotes(e.target.value)} />
       <div className="flex gap-2 pt-1">
         <button
@@ -116,7 +132,7 @@ function PaymentForm({ personId, onSaved, onCancel }) {
 // de gastos daquela pessoa, cada um editável e com caixinha de quitar
 // (só afeta a fatura do cartão, não esse total), além dos abatimentos já
 // registrados.
-export default function PersonBreakdown({ data, expenses, payments, onChanged }) {
+export default function PersonBreakdown({ data, expenses, payments, period, onChanged }) {
   const showToast = useToast();
   const [expandedId, setExpandedId] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -229,6 +245,7 @@ export default function PersonBreakdown({ data, expenses, payments, onChanged })
           {addingPayment ? (
             <PaymentForm
               personId={expandedId}
+              period={period}
               onSaved={() => {
                 setAddingPayment(false);
                 onChanged?.();

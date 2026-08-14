@@ -63,7 +63,13 @@ export default function Dashboard() {
               </Link>
             }
           >
-            <PersonBreakdown data={summary.byPerson} expenses={summary.expenses} payments={summary.payments} onChanged={load} />
+            <PersonBreakdown
+              data={summary.byPerson}
+              expenses={summary.expenses}
+              payments={summary.payments}
+              period={summary.period}
+              onChanged={load}
+            />
           </Card>
 
           <Card
