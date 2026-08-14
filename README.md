@@ -163,15 +163,25 @@ avulsos que você ainda não lançou não entram na conta, claro.
 
 ## Cobranças: quem deve quanto em cada fatura
 
-No Painel, a seção "Vencimento dos cartões" tem um seletor de pessoa no
-topo (começa em você). Tocando num cartão, a lista expande e mostra as
-compras **individuais** daquela pessoa na fatura em aberto — cada uma com
-uma caixinha de marcar. Marcar uma compra como quitada é por item, não
-por fatura inteira: ela fica riscada e some do valor pendente daquela
-pessoa naquele cartão; o total pendente (somando todo mundo) aparece
-destacado no topo da seção. Serve tanto pra "fulano me pagou essa compra"
-quanto pro caso inverso do cartão do seu tio (aí a caixinha marca que
-**você** já pagou aquela compra pra ele).
+A seção "Vencimento dos cartões" do Painel segue o período selecionado
+lá em cima: cada cartão mostra as compras daquele período específico
+(não sempre "hoje"). Se ainda sobrar algo pendente de fatura(s)
+anteriores àquele período, aparece como um total à parte ("+ RX de
+fatura(s) anterior(es)"), sem misturar com o valor do período atual —
+assim uma dívida antiga não some nem infla o número do mês que você está
+vendo.
+
+Tem um seletor de pessoa no topo (começa em você). Tocando num cartão, a
+lista expande e mostra as compras **individuais** daquela pessoa no
+período — cada uma com uma caixinha de marcar. Marcar uma compra como
+quitada é por item, não por fatura inteira: ela fica riscada e some do
+valor pendente daquela pessoa naquele cartão; o total pendente (somando
+todo mundo) aparece destacado no topo da seção. Serve tanto pra "fulano
+me pagou essa compra" quanto pro caso inverso do cartão do seu tio (aí a
+caixinha marca que **você** já pagou aquela compra pra ele). Pix e Flash
+não entram nesse formato de dívida (Pix já sai pago na hora; Flash é
+saldo de benefício) — só listam a soma do período, e o Flash mostra
+quanto ainda resta do limite.
 
 ## Funcionalidades
 

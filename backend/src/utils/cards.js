@@ -1,22 +1,22 @@
 const prisma = require('../db');
-const { nextDueDate, invoiceDueDateForExpense, PRIMARY_CYCLE_DAY } = require('./dates');
+const { periodLabelForDate, dueDateForPeriodLabel, PRIMARY_CYCLE_DAY } = require('./dates');
 const { round2 } = require('./aggregate');
 const { effectiveDate } = require('./billing');
 
 // Para cada cartão de crédito ativo (e também Pix/Flash, que não têm
 // fatura de verdade mas funcionam do mesmo jeito pra fins de "quem deve
-// quanto"), calcula o vencimento e quanto está pendente — com a lista de
-// compras individuais de cada um (settledAt marca se aquela compra
-// específica já foi quitada), pra saber exatamente o que cobrar de cada
-// um. Pix/Flash não têm dia de vencimento cadastrado, então usam o ciclo
+// quanto"), calcula o vencimento e a lista de compras do período
+// selecionado no Painel (monthParam) — com a lista individual de cada
+// pessoa (settledAt marca se aquela compra específica já foi quitada).
+// Pix/Flash não têm dia de vencimento cadastrado, então usam o ciclo
 // padrão da casa (dia 10) só pra agrupar no mesmo período que os outros
 // cartões.
 //
-// A fatura mostrada é a mais antiga que ainda tem algo pendente — não
-// necessariamente a próxima a vencer. Sem isso, assim que a data de
-// vencimento passasse o app pularia direto pra fatura seguinte e as
-// compras ainda não quitadas simplesmente sumiriam da lista.
-async function getCardInvoices(referenceDate = new Date()) {
+// Além das compras do próprio período, soma à parte (sem misturar) o
+// quanto ainda está pendente de faturas ANTERIORES a esse período — pra
+// não fazer uma dívida antiga sumir só porque você navegou pro mês
+// seguinte, mas também sem inflar o total do período atual com ela.
+async function getCardInvoices(monthParam) {
   const cards = await prisma.paymentMethod.findMany({
     where: { type: { in: ['CREDIT_CARD', 'PIX', 'VOUCHER'] }, active: true },
     orderBy: { sortOrder: 'asc' },
@@ -25,7 +25,8 @@ async function getCardInvoices(referenceDate = new Date()) {
   const results = [];
   for (const card of cards) {
     const dueDay = card.dueDay || PRIMARY_CYCLE_DAY;
-    const upcoming = nextDueDate(referenceDate, dueDay);
+    const due = dueDateForPeriodLabel(monthParam, dueDay);
+    const isCredit = card.type === 'CREDIT_CARD';
 
     const expenses = await prisma.expense.findMany({
       where: { paymentMethodId: card.id },
@@ -33,20 +34,16 @@ async function getCardInvoices(referenceDate = new Date()) {
       orderBy: { date: 'desc' },
     });
 
-    const byDue = new Map();
+    const matching = [];
+    let priorPendingTotal = 0;
     for (const e of expenses) {
-      const dueDate = invoiceDueDateForExpense(effectiveDate(e), dueDay);
-      const key = dueDate.getTime();
-      if (!byDue.has(key)) byDue.set(key, { due: dueDate, items: [] });
-      byDue.get(key).items.push(e);
+      const label = periodLabelForDate(effectiveDate(e), dueDay);
+      if (label === monthParam) {
+        matching.push(e);
+      } else if (isCredit && label < monthParam && !e.settledAt) {
+        priorPendingTotal += e.amount;
+      }
     }
-
-    const openGroups = Array.from(byDue.values())
-      .filter((g) => g.due <= upcoming && g.items.some((e) => !e.settledAt))
-      .sort((a, b) => a.due - b.due);
-
-    const due = openGroups.length > 0 ? openGroups[0].due : upcoming;
-    const matching = openGroups.length > 0 ? openGroups[0].items : byDue.get(upcoming.getTime())?.items || [];
     const total = matching.reduce((s, e) => s + e.amount, 0);
 
     const byPersonMap = new Map();
@@ -89,6 +86,7 @@ async function getCardInvoices(referenceDate = new Date()) {
       openInvoiceTotal: round2(total),
       itemCount: matching.length,
       totalPending: round2(byPerson.reduce((s, p) => s + p.pending, 0)),
+      priorPendingTotal: round2(priorPendingTotal),
       byPerson,
     });
   }

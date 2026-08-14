@@ -211,6 +211,11 @@ export default function CardDueList({ cardInvoices, people, onSettled }) {
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{c.paymentMethod.name}</p>
                     <p className="text-xs text-muted">{isDebt ? `Vence ${formatDate(c.nextDueDate)}` : 'Sem fatura — já sai pago na hora'}</p>
+                    {isDebt && c.priorPendingTotal > 0 && (
+                      <p className="text-xs font-medium mt-0.5" style={{ color: STATUS.critical }}>
+                        + {formatCurrency(c.priorPendingTotal)} de fatura(s) anterior(es)
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">

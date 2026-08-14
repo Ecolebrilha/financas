@@ -113,6 +113,23 @@ function invoicePeriodForMonthParam(monthStr, cutoffDay = PRIMARY_CYCLE_DAY) {
   return { year, monthIndex, start, end };
 }
 
+// Rótulo de período ("YYYY-MM") de uma data, dado o dia de corte do
+// cartão — inverso de invoicePeriodForMonthParam: em vez de período ->
+// intervalo de datas, aqui é data -> período.
+function periodLabelForDate(date, cutoffDay = PRIMARY_CYCLE_DAY) {
+  return monthKey(dueDateOnOrAfter(date, cutoffDay));
+}
+
+// Data de vencimento (dia de corte) que corresponde ao período rotulado
+// monthStr, pro dia de corte informado — usado pra mostrar "vence em
+// DD/MM" mesmo quando o período em questão não é o de hoje.
+function dueDateForPeriodLabel(monthStr, cutoffDay = PRIMARY_CYCLE_DAY) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const year = y;
+  const monthIndex = m - 1;
+  return new Date(Date.UTC(year, monthIndex, clampDay(year, monthIndex, cutoffDay)));
+}
+
 module.exports = {
   daysInMonth,
   clampDay,
@@ -129,4 +146,6 @@ module.exports = {
   nextDueDate: dueDateOnOrAfter,
   PRIMARY_CYCLE_DAY,
   invoicePeriodForMonthParam,
+  periodLabelForDate,
+  dueDateForPeriodLabel,
 };

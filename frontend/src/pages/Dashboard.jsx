@@ -31,7 +31,9 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(load, [month]);
 
-  const totalPending = summary ? summary.cardInvoices.reduce((s, c) => s + (c.totalPending || 0), 0) : 0;
+  const totalPending = summary
+    ? summary.cardInvoices.reduce((s, c) => s + (c.totalPending || 0) + (c.priorPendingTotal || 0), 0)
+    : 0;
 
   return (
     <div className="space-y-4">
@@ -83,8 +85,9 @@ export default function Dashboard() {
             }
           >
             <p className="text-xs text-muted -mt-2 mb-1">
-              Sempre com base em hoje, independente do mês selecionado acima. Escolha a pessoa e toque num cartão pra ver
-              (e quitar, no caso dos cartões de crédito) as compras dela.
+              Mostra as compras do período selecionado acima. Se ainda sobrar algo pendente de fatura(s) anteriores,
+              aparece à parte, sem misturar com o total do período. Escolha a pessoa e toque num cartão pra ver (e quitar,
+              no caso dos cartões de crédito) as compras dela.
             </p>
             <CardDueList cardInvoices={summary.cardInvoices} people={activePeople} onSettled={load} />
           </Card>

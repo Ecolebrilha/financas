@@ -122,7 +122,7 @@ router.get('/', async (req, res) => {
   }
   const projectedBalance = round2(carryOver + data.balance);
 
-  const [openInstallments, cardInvoices] = await Promise.all([getOpenInstallmentGroups(), getCardInvoices()]);
+  const [openInstallments, cardInvoices] = await Promise.all([getOpenInstallmentGroups(), getCardInvoices(monthParam)]);
 
   res.json({
     month: monthParam,
