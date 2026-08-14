@@ -70,6 +70,11 @@ function ItemRow({ item, onSettled, personName, onEdit, showSettle }) {
       <div className="min-w-0 flex-1">
         <p className={`text-sm truncate ${settled ? 'line-through text-muted' : ''}`}>
           {item.description}
+          {item.installmentTotal && (
+            <span className="ml-1.5 text-xs text-muted">
+              ({item.installmentNumber}/{item.installmentTotal})
+            </span>
+          )}
           {isRefund && <span className="ml-1.5 text-[11px] font-medium" style={{ color: STATUS.good }}>estorno</span>}
         </p>
         <p className="text-xs text-muted">

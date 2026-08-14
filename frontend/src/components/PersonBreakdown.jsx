@@ -270,6 +270,11 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
                 <div className="min-w-0 flex-1">
                   <p className={`text-sm font-medium truncate ${e.settledAt ? 'line-through text-muted' : ''}`}>
                     {e.description}
+                    {e.installmentTotal && (
+                      <span className="ml-1.5 text-xs text-muted">
+                        ({e.installmentNumber}/{e.installmentTotal})
+                      </span>
+                    )}
                     {e.amount < 0 && <span className="ml-1.5 text-[11px] font-medium" style={{ color: STATUS.good }}>estorno</span>}
                   </p>
                   <p className="text-xs text-muted truncate">
