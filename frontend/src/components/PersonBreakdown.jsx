@@ -108,12 +108,14 @@ function PaymentForm({ personId, onSaved, onCancel }) {
 }
 
 // Tiles grandes em vez de barrinhas finas — o pedido foi "mais rápido de
-// ver quem gastou quanto". O valor em destaque é o que ainda está
-// PENDENTE de quitação (some conforme você marca compras como pagas, ou
-// conforme a pessoa registra um abatimento avulso), com o total gasto
-// como referência menor embaixo. Tocar num tile expande a lista de
-// gastos daquela pessoa, cada um editável e com caixinha de quitar ali
-// mesmo, além dos abatimentos já registrados.
+// ver quem gastou quanto". O valor em destaque é o total gasto menos os
+// abatimentos avulsos já registrados (Pix que a pessoa te mandou) — NÃO
+// desconta compras marcadas como "quitado" no cartão, porque isso é
+// controle por item de fatura (ver Vencimento dos cartões), separado de
+// quanto a pessoa já te devolveu de fato. Tocar num tile expande a lista
+// de gastos daquela pessoa, cada um editável e com caixinha de quitar
+// (só afeta a fatura do cartão, não esse total), além dos abatimentos já
+// registrados.
 export default function PersonBreakdown({ data, expenses, payments, onChanged }) {
   const showToast = useToast();
   const [expandedId, setExpandedId] = useState(null);
@@ -125,11 +127,6 @@ export default function PersonBreakdown({ data, expenses, payments, onChanged })
     return <p className="text-sm text-muted py-2">Sem lançamentos neste mês.</p>;
   }
 
-  const pendingByPerson = new Map();
-  for (const e of expenses || []) {
-    if (e.settledAt) continue;
-    pendingByPerson.set(e.personId, (pendingByPerson.get(e.personId) || 0) + e.amount);
-  }
   const paymentsByPerson = new Map();
   for (const p of payments || []) {
     paymentsByPerson.set(p.personId, (paymentsByPerson.get(p.personId) || 0) + p.amount);
@@ -167,7 +164,7 @@ export default function PersonBreakdown({ data, expenses, payments, onChanged })
     <div>
       <div className="grid grid-cols-2 gap-2">
         {data.map((d, i) => {
-          const rawPending = (pendingByPerson.get(d.id) || 0) - (paymentsByPerson.get(d.id) || 0);
+          const rawPending = d.total - (paymentsByPerson.get(d.id) || 0);
           const pending = Math.round((rawPending + Number.EPSILON) * 100) / 100;
           const isCredit = pending < 0;
           return (

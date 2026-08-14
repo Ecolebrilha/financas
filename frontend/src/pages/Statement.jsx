@@ -89,9 +89,12 @@ export default function Statement() {
       const normal = items.filter((e) => e.amount >= 0);
       const refunds = items.filter((e) => e.amount < 0);
       const payments = summary.payments.filter((p) => p.personId === person.id);
-      const unsettled = items.filter((e) => !e.settledAt).reduce((s, e) => s + e.amount, 0);
+      // Não desconta gastos marcados como "quitado" no cartão — isso é
+      // controle da fatura, separado do total que a pessoa te deve (só o
+      // abatimento avulso desconta daqui, ver PersonBreakdown).
+      const total = items.reduce((s, e) => s + e.amount, 0);
       const paymentsTotal = payments.reduce((s, p) => s + p.amount, 0);
-      return { person, items, normal, refunds, payments, pending: round2(unsettled - paymentsTotal) };
+      return { person, items, normal, refunds, payments, pending: round2(total - paymentsTotal) };
     })
     .filter((g) => g.items.length > 0 || g.payments.length > 0);
 
