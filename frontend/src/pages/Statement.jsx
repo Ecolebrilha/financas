@@ -17,10 +17,14 @@ function round2(n) {
 function buildStatementText(group, period) {
   const lines = [`Extrato de ${group.person.name} — ${formatPeriodRange(period.start, period.end)}`, ''];
 
+  const installmentSuffix = (e) => (e.installmentTotal ? ` (${e.installmentNumber}/${e.installmentTotal})` : '');
+
   if (group.normal.length > 0) {
     lines.push('Gastos:');
     for (const e of group.normal) {
-      lines.push(`• ${formatDate(e.date)} - ${e.description} - ${formatCurrency(e.amount)}${e.settledAt ? ' (já quitado)' : ''}`);
+      lines.push(
+        `• ${formatDate(e.date)} - ${e.description}${installmentSuffix(e)} - ${formatCurrency(e.amount)}${e.settledAt ? ' (já quitado)' : ''}`,
+      );
     }
     lines.push('');
   }
@@ -28,7 +32,7 @@ function buildStatementText(group, period) {
   if (group.refunds.length > 0) {
     lines.push('Estornos:');
     for (const e of group.refunds) {
-      lines.push(`• ${formatDate(e.date)} - ${e.description} - ${formatCurrency(e.amount)}`);
+      lines.push(`• ${formatDate(e.date)} - ${e.description}${installmentSuffix(e)} - ${formatCurrency(e.amount)}`);
     }
     lines.push('');
   }
