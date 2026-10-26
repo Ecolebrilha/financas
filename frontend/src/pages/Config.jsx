@@ -55,9 +55,11 @@ export default function Config() {
             onChanged={reload}
             fields={[
               { key: 'name', label: 'Nome', type: 'text', required: true },
+              { key: 'icon', label: 'Ícone (emoji, ex: 👩)', type: 'text' },
+              { key: 'color', label: 'Cor', type: 'color' },
               { key: 'isSelf', label: 'Essa pessoa é você (usado pro saldo pessoal do Painel)', type: 'checkbox' },
             ]}
-            describe={(item) => (item.isSelf ? `${item.name} (você)` : item.name)}
+            describe={(item) => `${item.icon ? item.icon + ' ' : ''}${item.name}${item.isSelf ? ' (você)' : ''}`}
           />
         )}
         {tab === 'categorias' && (
@@ -80,12 +82,18 @@ export default function Config() {
               { key: 'name', label: 'Nome', type: 'text', required: true },
               { key: 'type', label: 'Tipo', type: 'select', options: PAYMENT_TYPE_OPTIONS, required: true },
               { key: 'dueDay', label: 'Dia de vencimento (se for cartão)', type: 'number', min: 1, max: 31 },
+              {
+                key: 'dueDateFollowsPurchase',
+                label: 'Vencimento = data da compra + 1 mês (ex: Renner, sem corte mensal fixo)',
+                type: 'checkbox',
+              },
               { key: 'creditLimit', label: 'Limite máximo (opcional)', type: 'number', min: 0 },
-              { key: 'usedLimit', label: 'Limite utilizado atualmente (opcional)', type: 'number', min: 0 },
+              { key: 'color', label: 'Cor', type: 'color' },
             ]}
             describe={(item) => {
               let text = `${item.name} — ${PAYMENT_TYPE_LABELS[item.type]}`;
-              if (item.dueDay) text += ` · vence dia ${item.dueDay}`;
+              if (item.dueDateFollowsPurchase) text += ' · vence 1 mês após a compra';
+              else if (item.dueDay) text += ` · vence dia ${item.dueDay}`;
               if (item.creditLimit != null) {
                 const available = item.creditLimit - (item.usedLimit || 0);
                 text += ` · disponível ${formatCurrency(available)} de ${formatCurrency(item.creditLimit)}`;

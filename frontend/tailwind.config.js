@@ -1,29 +1,36 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'media',
+  // Tema fixo dark com identidade de cor (navy) — não deve mais trocar
+  // sozinho com o tema do navegador/sistema. Estratégia 'class' (em vez
+  // de 'media', o padrão) faz as classes `dark:*` só ativarem dentro de
+  // um elemento com classe "dark"; essa classe é colocada fixa no <html>
+  // (ver index.html) em vez de depender do prefers-color-scheme do SO —
+  // assim todo o `dark:*` já usado em cada componente continua valendo
+  // (hover, bordas, overlays etc.), só que sempre ativo.
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
         surface: '#fcfcfb',
-        surfacedk: '#1a1a19',
+        surfacedk: '#161b2e',
         page: '#f9f9f7',
-        pagedk: '#0d0d0d',
+        pagedk: '#0e1220',
         ink: '#0b0b0b',
-        inkdk: '#ffffff',
+        inkdk: '#eef1fb',
         ink2: '#52514e',
-        ink2dk: '#c3c2b7',
-        muted: '#898781',
+        ink2dk: '#aab2cc',
+        muted: '#7d87a8',
         grid: '#e1e0d9',
-        griddk: '#2c2c2a',
+        griddk: '#2a3150',
         baseline: '#c3c2b7',
-        baselinedk: '#383835',
+        baselinedk: '#3a4268',
         good: '#0ca30c',
-        gooddk: '#0ca30c',
-        warning: '#fab219',
-        serious: '#ec835a',
+        gooddk: '#34d399',
+        warning: '#fbbf63',
+        serious: '#fb923c',
         critical: '#d03b3b',
-        criticaldk: '#e66767',
+        criticaldk: '#f87171',
       },
       fontFamily: {
         sans: ['system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],

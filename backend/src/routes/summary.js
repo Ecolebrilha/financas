@@ -82,7 +82,18 @@ async function getPeriodData(monthParam) {
   // Saldo é sempre da sua parte: sua receita menos só os SEUS gastos — o
   // que as outras pessoas gastaram nos cartões compartilhados é cobrança
   // (ver Vencimento dos cartões), não dinheiro seu de fato.
-  const selfExpenses = round2(sum(expenses.filter((e) => e.person?.isSelf), 'amount'));
+  const selfPeriodExpenses = expenses.filter((e) => e.person?.isSelf);
+  const selfExpenses = round2(sum(selfPeriodExpenses, 'amount'));
+  // Dentro dos SEUS gastos, separa o que já saiu de verdade do seu
+  // bolso (Pix/Débito — pago na hora, não tem fatura) do que é dívida de
+  // cartão de crédito que só vence depois. Pra fluxo de caixa, os dois
+  // contam igual no saldo total, mas são coisas diferentes: um já foi,
+  // o outro ainda precisa ter dinheiro guardado pra pagar na hora certa.
+  const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD'];
+  const selfExpensesImmediate = round2(
+    sum(selfPeriodExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type)), 'amount'),
+  );
+  const selfExpensesCard = round2(selfExpenses - selfExpensesImmediate);
   const income = round2(sum(incomes, 'amount'));
 
   return {
@@ -93,6 +104,8 @@ async function getPeriodData(monthParam) {
     payments,
     householdExpenses,
     selfExpenses,
+    selfExpensesImmediate,
+    selfExpensesCard,
     income,
     balance: round2(income - selfExpenses),
   };
@@ -121,6 +134,48 @@ router.get('/', async (req, res) => {
     }
   }
   const projectedBalance = round2(carryOver + data.balance);
+  const headlineBalance = isFuture ? projectedBalance : data.balance;
+
+  // Quando o saldo fica negativo, sugere como sacar a diferença no limite
+  // do cartão via Mercado Pago (único jeito que você usa pra isso): a
+  // taxa de 1x é mais barata, mas se pagar tudo de uma vez deixaria o MÊS
+  // SEGUINTE também no vermelho, parcelar em 2x (mais caro no total, mas
+  // mais leve por mês) costuma ser a escolha certa — mesmo critério que
+  // você já usa na prática, só automatizado.
+  const WITHDRAWAL_FEE_RATES = { 1: 0.0498, 2: 0.0691 };
+  let cardWithdrawal = null;
+  if (headlineBalance < 0) {
+    const amountNeeded = round2(Math.abs(headlineBalance));
+    const fee1x = round2(amountNeeded * WITHDRAWAL_FEE_RATES[1]);
+    const total1x = round2(amountNeeded + fee1x);
+    const fee2x = round2(amountNeeded * WITHDRAWAL_FEE_RATES[2]);
+    const total2x = round2(amountNeeded + fee2x);
+
+    const nextMonthParam = shiftMonthKey(monthParam, 1);
+    const nextMonthData = await getPeriodData(nextMonthParam);
+    // Se o mês seguinte já fecha no vermelho, pagar o saque inteiro em 1x
+    // só pioraria — por isso o teste é contra o saldo dele JÁ descontando
+    // o repasse de cada opção.
+    const nextMonthBalanceIf1x = round2(nextMonthData.balance - total1x);
+    const nextMonthBalanceIf2x = round2(nextMonthData.balance - total2x / 2);
+    // 1x sai mais barato no total — só vale parcelar em 2x quando pagar
+    // tudo de uma vez pesaria demais no mês seguinte (deixaria ele no
+    // vermelho), que é exatamente o critério que você já usa na prática.
+    const recommended = nextMonthBalanceIf1x < 0 ? 2 : 1;
+
+    cardWithdrawal = {
+      amountNeeded,
+      options: {
+        1: { installments: 1, feeRate: WITHDRAWAL_FEE_RATES[1], fee: fee1x, total: total1x, perInstallment: total1x },
+        2: { installments: 2, feeRate: WITHDRAWAL_FEE_RATES[2], fee: fee2x, total: total2x, perInstallment: round2(total2x / 2) },
+      },
+      nextMonth: nextMonthParam,
+      nextMonthBalanceBeforeWithdrawal: nextMonthData.balance,
+      nextMonthBalanceIf1x,
+      nextMonthBalanceIf2x,
+      recommended,
+    };
+  }
 
   const [openInstallments, cardInvoices] = await Promise.all([getOpenInstallmentGroups(), getCardInvoices(monthParam)]);
 
@@ -129,6 +184,8 @@ router.get('/', async (req, res) => {
     period: { start: data.start, end: new Date(data.end.getTime() - 1) },
     totals: {
       expenses: data.selfExpenses,
+      expensesImmediate: data.selfExpensesImmediate,
+      expensesCard: data.selfExpensesCard,
       householdExpenses: data.householdExpenses,
       income: data.income,
       balance: data.balance,
@@ -146,6 +203,7 @@ router.get('/', async (req, res) => {
     recurringIncomes: data.incomes.filter((i) => i.recurringIncomeId),
     openInstallments,
     cardInvoices,
+    cardWithdrawal,
     expenseCount: data.expenses.length,
     incomeCount: data.incomes.length,
   });

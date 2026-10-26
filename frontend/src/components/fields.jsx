@@ -34,6 +34,14 @@ export function DateField({ label, ...props }) {
   );
 }
 
+export function MonthField({ label, ...props }) {
+  return (
+    <Wrapper label={label}>
+      <input type="month" className={inputClass} {...props} />
+    </Wrapper>
+  );
+}
+
 export function TextAreaField({ label, ...props }) {
   return (
     <Wrapper label={label}>

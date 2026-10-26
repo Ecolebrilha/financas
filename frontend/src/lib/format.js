@@ -40,6 +40,12 @@ export function toInputDate(isoOrDate) {
   return date.toISOString().slice(0, 10);
 }
 
+// Date -> "YYYY-MM" (pra inputs type=month, sempre em UTC)
+export function toInputMonth(isoOrDate) {
+  const date = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
+  return date.toISOString().slice(0, 7);
+}
+
 export function currentMonthKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;

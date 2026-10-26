@@ -21,6 +21,22 @@ function FieldInput({ field, value, onChange }) {
     );
   }
   if (field.type === 'number') return <NumberField {...props} step="1" min={field.min} max={field.max} />;
+  if (field.type === 'color') {
+    return (
+      <label className="block">
+        <span className="block text-sm font-medium text-ink2 dark:text-ink2dk mb-1">{field.label}</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            className="h-10 w-14 rounded-lg border border-black/10 dark:border-white/15 bg-transparent"
+            value={value || '#64748b'}
+            onChange={(e) => onChange(e.target.value)}
+          />
+          <span className="text-sm text-muted">{value || 'sem cor definida'}</span>
+        </div>
+      </label>
+    );
+  }
   if (field.type === 'checkbox') {
     return (
       <label className="flex items-center gap-2 text-sm text-ink2 dark:text-ink2dk">

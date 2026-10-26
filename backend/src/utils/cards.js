@@ -1,7 +1,7 @@
 const prisma = require('../db');
-const { periodLabelForDate, dueDateForPeriodLabel, PRIMARY_CYCLE_DAY } = require('./dates');
+const { dueDateForPeriodLabel, PRIMARY_CYCLE_DAY, currentMonthKey } = require('./dates');
 const { round2 } = require('./aggregate');
-const { effectiveDate } = require('./billing');
+const { effectiveDate, periodLabelFor } = require('./billing');
 
 // Para cada cartão de crédito ativo (e também Pix/Flash, que não têm
 // fatura de verdade mas funcionam do mesmo jeito pra fins de "quem deve
@@ -25,7 +25,6 @@ async function getCardInvoices(monthParam) {
   const results = [];
   for (const card of cards) {
     const dueDay = card.dueDay || PRIMARY_CYCLE_DAY;
-    const due = dueDateForPeriodLabel(monthParam, dueDay);
     const isCredit = card.type === 'CREDIT_CARD';
 
     const expenses = await prisma.expense.findMany({
@@ -37,7 +36,7 @@ async function getCardInvoices(monthParam) {
     const matching = [];
     let priorPendingTotal = 0;
     for (const e of expenses) {
-      const label = periodLabelForDate(effectiveDate(e), dueDay);
+      const label = periodLabelFor(effectiveDate(e), card);
       if (label === monthParam) {
         matching.push(e);
       } else if (isCredit && label < monthParam && !e.settledAt) {
@@ -45,6 +44,17 @@ async function getCardInvoices(monthParam) {
       }
     }
     const total = matching.reduce((s, e) => s + e.amount, 0);
+
+    // Cartões com vencimento fixo (a maioria): o "vence" do período é
+    // sempre o mesmo dia pra todo mundo. Cartões com
+    // dueDateFollowsPurchase (ex: Renner) não têm esse corte único —
+    // cada compra vence num dia diferente, então mostra a data mais
+    // tardia entre as compras do período (o prazo final daquele "lote").
+    const due = card.dueDateFollowsPurchase
+      ? matching.length > 0
+        ? new Date(Math.max(...matching.map((e) => effectiveDate(e).getTime())))
+        : dueDateForPeriodLabel(monthParam, dueDay)
+      : dueDateForPeriodLabel(monthParam, dueDay);
 
     const byPersonMap = new Map();
     for (const e of matching) {
@@ -93,4 +103,29 @@ async function getCardInvoices(monthParam) {
   return results;
 }
 
-module.exports = { getCardInvoices };
+// Quanto do limite de cada cartão está ocupado AGORA, calculado a partir
+// dos próprios lançamentos em vez de mantido manualmente: soma a fatura
+// do período atual (ainda em aberto, nem venceu) com qualquer parcela
+// futura já lançada (parcelamentos em andamento) — isso é o que ainda
+// "pesa" no limite. Não entra fatura já vencida: a premissa do app é que
+// ela já foi paga com a receita do mês, liberando o limite de novo (não
+// usa settledAt pra essa conta — aquele campo é sobre a pessoa ter te
+// pago de volta, não sobre você ter pago o banco).
+async function getUsedCreditLimits(cards) {
+  const cardIds = cards.map((c) => c.id);
+  if (cardIds.length === 0) return new Map();
+  const today = currentMonthKey();
+  const cardsById = new Map(cards.map((c) => [c.id, c]));
+  const expenses = await prisma.expense.findMany({ where: { paymentMethodId: { in: cardIds } } });
+
+  const used = new Map(cardIds.map((id) => [id, 0]));
+  for (const e of expenses) {
+    const card = cardsById.get(e.paymentMethodId);
+    const label = periodLabelFor(effectiveDate(e), card);
+    if (label >= today) used.set(e.paymentMethodId, used.get(e.paymentMethodId) + e.amount);
+  }
+  for (const [id, total] of used) used.set(id, round2(total));
+  return used;
+}
+
+module.exports = { getCardInvoices, getUsedCreditLimits };

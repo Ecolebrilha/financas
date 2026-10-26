@@ -20,6 +20,9 @@ model Person {
   id        String   @id @default(cuid())
   name      String
   color     String?
+  // Emoji (1-2 caracteres) usado como avatar da pessoa nas telas de
+  // lançamento, pra identificar rápido quem é quem sem ler o nome.
+  icon      String?
   // Marca a pessoa "dona" do app (você) — usado pro Painel calcular saldo
   // pessoal (sua receita - só os SEUS gastos, não da família toda, já que
   // o resto é reembolsado, não é dinheiro seu de fato). Só uma pessoa
@@ -68,6 +71,13 @@ model PaymentMethod {
   creditLimit Float?
   usedLimit   Float?
   color      String?
+  // Alguns cartões de loja (ex: Renner) não têm um dia de fechamento
+  // fixo pra todo mundo — cada compra vence exatamente 1 mês depois,
+  // no mesmo dia (comprou 25/10 → fatura 25/11). Quando true, o
+  // dueDay acima vira só um valor de referência (exibição) — o
+  // vencimento real de cada compra é calculado a partir da própria
+  // data dela, não de um corte mensal compartilhado.
+  dueDateFollowsPurchase Boolean @default(false)
   active     Boolean     @default(true)
   sortOrder  Int         @default(0)
   createdAt  DateTime    @default(now())

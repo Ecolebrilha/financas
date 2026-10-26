@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../db');
 const { createExpenseWithInstallments } = require('../utils/installments');
 const { billingDateWhere } = require('../utils/billing');
+const { addMonths } = require('../utils/dates');
 
 const router = express.Router();
 const INCLUDE = { person: true, paymentMethod: true, category: true };
@@ -64,16 +65,29 @@ router.post('/', async (req, res) => {
   // resto da fatura/relatórios em vez de precisar de lógica separada em
   // cada soma (fatura do cartão, saldo do mês, gasto por categoria etc).
   const amount = body.isRefund ? -magnitude : magnitude;
+  const date = parseDate(body.date);
+
+  // Cartões com dueDateFollowsPurchase (ex: Renner) não têm fatura prevista
+  // informada manualmente — a fatura real é sempre 1 mês depois da compra,
+  // então já calcula e grava isso como billingDate na criação, pra toda a
+  // lógica de período (billing.js/cards.js) usar sem saber dessa regra.
+  let billingDate = body.billingDate ? parseDate(body.billingDate) : null;
+  if (!billingDate) {
+    const paymentMethod = await prisma.paymentMethod.findUnique({ where: { id: body.paymentMethodId } });
+    if (paymentMethod?.dueDateFollowsPurchase) {
+      billingDate = addMonths(date, 1);
+    }
+  }
 
   const data = {
     description: String(body.description).trim(),
     amount,
-    date: parseDate(body.date),
+    date,
     personId: body.personId,
     paymentMethodId: body.paymentMethodId,
     categoryId: body.categoryId,
     notes: body.notes || null,
-    billingDate: body.billingDate ? parseDate(body.billingDate) : null,
+    billingDate,
   };
 
   try {
@@ -103,7 +117,22 @@ router.put('/:id', async (req, res) => {
   if (body.paymentMethodId !== undefined) data.paymentMethodId = body.paymentMethodId;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId;
   if (body.notes !== undefined) data.notes = body.notes || null;
-  if (body.billingDate !== undefined) data.billingDate = body.billingDate ? parseDate(body.billingDate) : null;
+  if (body.billingDate !== undefined) {
+    data.billingDate = body.billingDate ? parseDate(body.billingDate) : null;
+  } else if (data.date !== undefined || data.paymentMethodId !== undefined) {
+    // Nenhuma fatura prevista foi informada explicitamente, mas a data ou
+    // o cartão mudaram — se o cartão (novo ou o já existente) for do tipo
+    // dueDateFollowsPurchase, recalcula a billingDate automática em vez
+    // de deixá-la desatualizada.
+    const existing = await prisma.expense.findUnique({ where: { id: req.params.id } });
+    if (existing) {
+      const paymentMethodId = data.paymentMethodId ?? existing.paymentMethodId;
+      const paymentMethod = await prisma.paymentMethod.findUnique({ where: { id: paymentMethodId } });
+      if (paymentMethod?.dueDateFollowsPurchase) {
+        data.billingDate = addMonths(data.date ?? existing.date, 1);
+      }
+    }
+  }
   if (body.installmentNumber !== undefined) {
     data.installmentNumber = body.installmentNumber ? Number(body.installmentNumber) : null;
   }

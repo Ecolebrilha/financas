@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useAppData } from '../context/AppDataContext';
 import { useToast } from '../context/ToastContext';
 import { api } from '../api/client';
-import { TextField, NumberField, DateField, TextAreaField, SelectField, SegmentedControl, PrimaryButton } from '../components/fields';
+import { TextField, NumberField, DateField, MonthField, TextAreaField, SelectField, SegmentedControl, PrimaryButton } from '../components/fields';
+import PersonPicker from '../components/PersonPicker';
 import { toInputDate } from '../lib/format';
 
 const TIPOS = [
@@ -83,7 +84,7 @@ export default function QuickAddExpense() {
           paymentMethodId: form.paymentMethodId,
           categoryId: form.categoryId,
           notes: form.notes || undefined,
-          billingDate: showBillingOverride && form.billingDate ? form.billingDate : undefined,
+          billingDate: showBillingOverride && form.billingDate ? `${form.billingDate}-01` : undefined,
         };
         if (tipo === 'parcelado') {
           payload.installmentNumber = Number(form.installmentNumber);
@@ -133,16 +134,7 @@ export default function QuickAddExpense() {
           <DateField label={tipo === 'fixo' ? 'Primeiro lançamento' : 'Data'} value={form.date} onChange={set('date')} required />
         </div>
 
-        <SelectField label="Pessoa" value={form.personId} onChange={set('personId')} required>
-          <option value="" disabled>
-            Selecione
-          </option>
-          {activePeople.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </SelectField>
+        <PersonPicker people={activePeople} value={form.personId} onChange={(id) => setForm((f) => ({ ...f, personId: id }))} />
 
         <SelectField label="Método de pagamento" value={form.paymentMethodId} onChange={set('paymentMethodId')} required>
           <option value="" disabled>
@@ -208,7 +200,7 @@ export default function QuickAddExpense() {
             </label>
             {showBillingOverride && (
               <div className="mt-2">
-                <DateField label="Fatura prevista para" value={form.billingDate} onChange={set('billingDate')} />
+                <MonthField label="Fatura prevista para" value={form.billingDate} onChange={set('billingDate')} />
                 <p className="text-xs text-muted mt-1">
                   Ex: comprou hoje mas a fatura só vem em dezembro. Deixe desmarcado no dia a dia — a maioria dos gastos usa a
                   própria data da compra.

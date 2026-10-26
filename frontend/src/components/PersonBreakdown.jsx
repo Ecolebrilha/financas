@@ -176,6 +176,38 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
     }
   }
 
+  async function handleDeleteExpense(expense) {
+    let scope;
+    if (expense.installmentGroupId) {
+      const deleteAll = window.confirm(
+        'Esse gasto faz parte de um parcelamento.\n\nOK = apagar esta parcela e todas as futuras dela\nCancelar = apagar só esta parcela',
+      );
+      scope = deleteAll ? 'group' : undefined;
+    } else if (!window.confirm(`Apagar "${expense.description}"?`)) {
+      return;
+    }
+    try {
+      await api.expenses.remove(expense.id, scope ? { scope } : undefined);
+      showToast('Gasto apagado.');
+      onChanged?.();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function handleSettleAll() {
+    const pending = expandedExpenses.filter((e) => !e.settledAt && e.amount >= 0);
+    if (pending.length === 0) return;
+    if (!window.confirm(`Marcar ${pending.length} gasto(s) de ${expandedPerson.name} como pago(s)?`)) return;
+    try {
+      await Promise.all(pending.map((e) => api.expenses.settle(e.id, true)));
+      showToast(`${pending.length} gasto(s) marcado(s) como pago.`);
+      onChanged?.();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
   return (
     <div>
       <div className="grid grid-cols-2 gap-2">
@@ -196,7 +228,11 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
               }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: categoricalColor(i) }} />
+                {d.icon ? (
+                  <span className="text-sm leading-none shrink-0">{d.icon}</span>
+                ) : (
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color || categoricalColor(i) }} />
+                )}
                 <span className="text-xs text-ink2 dark:text-ink2dk truncate">{d.name}</span>
               </div>
               <span className="text-lg font-bold tabular-nums" style={isCredit ? { color: STATUS.good } : undefined}>
@@ -212,9 +248,21 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
 
       {expandedPerson && (
         <div className="mt-3 border-t border-black/5 dark:border-white/10 pt-3">
-          <p className="text-xs text-muted mb-2">
-            {expandedExpenses.length} gasto(s) de {expandedPerson.name} neste período
-          </p>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <p className="text-xs text-muted">
+              {expandedExpenses.length} gasto(s) de {expandedPerson.name} neste período
+            </p>
+            {expandedExpenses.some((e) => !e.settledAt && e.amount >= 0) && (
+              <button
+                type="button"
+                onClick={handleSettleAll}
+                className="flex items-center gap-1 text-xs font-medium shrink-0"
+                style={{ color: STATUS.good }}
+              >
+                <IconCheck width={12} height={12} /> Marcar tudo como pago
+              </button>
+            )}
+          </div>
 
           {expandedPayments.length > 0 && (
             <ul className="space-y-1 mb-2">
@@ -295,6 +343,14 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
                   aria-label="Editar"
                 >
                   <IconEdit width={15} height={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteExpense(e)}
+                  className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical shrink-0"
+                  aria-label="Excluir"
+                >
+                  <IconTrash width={15} height={15} />
                 </button>
               </li>
             ))}

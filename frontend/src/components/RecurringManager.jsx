@@ -7,7 +7,7 @@ import { TextField, NumberField, DateField, SelectField, PrimaryButton } from '.
 import { IconEdit, IconPlus } from './icons';
 import { formatCurrency, toInputDate } from '../lib/format';
 
-function RecurringForm({ initial, onSubmit, onCancel, saving }) {
+export function RecurringForm({ initial, onSubmit, onCancel, saving }) {
   const { activePeople, activeCategories, activePaymentMethods } = useAppData();
   const [form, setForm] = useState({
     description: initial?.description || '',

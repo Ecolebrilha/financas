@@ -16,7 +16,17 @@ import { STATUS } from '../lib/colors';
 // saldo (ou dívida) acumulado desde hoje — vindo de despesas fixas e
 // parcelas já lançadas em cada período no meio do caminho — com a
 // receita/gasto previstos do próprio período.
-export default function MonthOverview({ expenses, householdExpenses, income, balance, isFuture, projectedBalance, carryOver }) {
+export default function MonthOverview({
+  expenses,
+  expensesImmediate,
+  expensesCard,
+  householdExpenses,
+  income,
+  balance,
+  isFuture,
+  projectedBalance,
+  carryOver,
+}) {
   const headline = isFuture ? projectedBalance : balance;
   const isNegative = headline < 0;
 
@@ -57,9 +67,20 @@ export default function MonthOverview({ expenses, householdExpenses, income, bal
         <span style={{ color: STATUS.critical }}>Seus gastos {formatCurrency(expenses)}</span>
         <span style={{ color: STATUS.good }}>Receita {formatCurrency(income)}</span>
       </div>
-      {!isFuture && isNegative && (
+      {expensesImmediate != null && expensesCard != null && (
+        <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
+          <span>já pago (Pix/Débito) {formatCurrency(expensesImmediate)}</span>
+          <span>cartão a vencer {formatCurrency(expensesCard)}</span>
+        </div>
+      )}
+      {isNegative && (
         <p className="text-xs mt-2" style={{ color: STATUS.critical }}>
-          Você gastou {formatCurrency(Math.abs(balance))} a mais do que recebeu neste mês.
+          {isFuture
+            ? `Projeção fica ${formatCurrency(Math.abs(headline))} negativa`
+            : `Você gastou ${formatCurrency(Math.abs(balance))} a mais do que recebeu neste mês`}
+          {' — pra cobrir, precisaria puxar '}
+          {formatCurrency(Math.abs(headline))}
+          {' do limite do cartão.'}
         </p>
       )}
       {isFuture && (

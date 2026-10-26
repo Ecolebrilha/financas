@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAppData } from '../context/AppDataContext';
-import { TextField, NumberField, DateField, TextAreaField, SelectField, PrimaryButton } from './fields';
-import { toInputDate } from '../lib/format';
+import { TextField, NumberField, DateField, MonthField, TextAreaField, SelectField, PrimaryButton } from './fields';
+import PersonPicker from './PersonPicker';
+import { toInputDate, toInputMonth } from '../lib/format';
 
 export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
   const { activePeople, activeCategories, activePaymentMethods } = useAppData();
@@ -16,7 +17,7 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
     notes: expense.notes || '',
     installmentNumber: expense.installmentNumber || '',
     installmentTotal: expense.installmentTotal || '',
-    billingDate: expense.billingDate ? toInputDate(expense.billingDate) : '',
+    billingDate: expense.billingDate ? toInputMonth(expense.billingDate) : '',
   });
 
   const set = (field) => (e) => {
@@ -37,7 +38,7 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
       notes: form.notes || null,
       installmentNumber: form.installmentNumber ? Number(form.installmentNumber) : null,
       installmentTotal: form.installmentTotal ? Number(form.installmentTotal) : null,
-      billingDate: form.billingDate || null,
+      billingDate: form.billingDate ? `${form.billingDate}-01` : null,
     });
   }
 
@@ -52,13 +53,7 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
         <input type="checkbox" checked={form.isRefund} onChange={set('isRefund')} className="h-4 w-4" />
         É um estorno (desconta da fatura em vez de somar)
       </label>
-      <SelectField label="Pessoa" value={form.personId} onChange={set('personId')} required>
-        {activePeople.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </SelectField>
+      <PersonPicker people={activePeople} value={form.personId} onChange={(id) => setForm((f) => ({ ...f, personId: id }))} />
       <SelectField label="Método de pagamento" value={form.paymentMethodId} onChange={set('paymentMethodId')} required>
         {activePaymentMethods.map((pm) => (
           <option key={pm.id} value={pm.id}>
@@ -80,7 +75,7 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
         </div>
       )}
       <div>
-        <DateField label="Fatura prevista para (opcional)" value={form.billingDate} onChange={set('billingDate')} />
+        <MonthField label="Fatura prevista para (opcional)" value={form.billingDate} onChange={set('billingDate')} />
         <p className="text-xs text-muted mt-1">
           Só preencha se a cobrança real vai cair num mês bem diferente da data da compra (ex: comprou hoje mas a fatura só
           vem em dezembro). Deixe em branco pra usar a data da compra normalmente.

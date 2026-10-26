@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency, formatDate } from '../lib/format';
 import { STATUS } from '../lib/colors';
-import { IconCheck, IconChevronRight, IconEdit } from './icons';
+import { IconCheck, IconChevronRight, IconEdit, IconTrash } from './icons';
 import Modal from './Modal';
 import ExpenseEditForm from './ExpenseEditForm';
 
@@ -37,6 +37,25 @@ function ItemRow({ item, onSettled, personName, onEdit, showSettle }) {
       showToast(e.message, 'error');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    let scope;
+    if (item.installmentGroupId) {
+      const deleteAll = window.confirm(
+        'Esse gasto faz parte de um parcelamento.\n\nOK = apagar esta parcela e todas as futuras dela\nCancelar = apagar só esta parcela',
+      );
+      scope = deleteAll ? 'group' : undefined;
+    } else if (!window.confirm(`Apagar "${item.description}"?`)) {
+      return;
+    }
+    try {
+      await api.expenses.remove(item.id, scope ? { scope } : undefined);
+      showToast('Gasto apagado.');
+      onSettled();
+    } catch (e) {
+      showToast(e.message, 'error');
     }
   }
 
@@ -95,6 +114,14 @@ function ItemRow({ item, onSettled, personName, onEdit, showSettle }) {
         aria-label="Editar"
       >
         <IconEdit width={15} height={15} />
+      </button>
+      <button
+        type="button"
+        onClick={handleDelete}
+        className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical shrink-0"
+        aria-label="Excluir"
+      >
+        <IconTrash width={15} height={15} />
       </button>
     </li>
   );

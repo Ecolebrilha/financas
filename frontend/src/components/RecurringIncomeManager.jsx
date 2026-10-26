@@ -13,7 +13,7 @@ const TIMING_OPTIONS = [
   { value: 'ultimo_util', label: 'Último dia útil' },
 ];
 
-function RecurringIncomeForm({ initial, onSubmit, onCancel, saving }) {
+export function RecurringIncomeForm({ initial, onSubmit, onCancel, saving }) {
   const { activePeople } = useAppData();
   const [form, setForm] = useState({
     description: initial?.description || '',

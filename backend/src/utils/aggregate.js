@@ -18,6 +18,7 @@ function groupSumByEntity(items, entityFn, valueFn) {
         id: entity.id,
         name: entity.name,
         color: entity.color || null,
+        icon: entity.icon || null,
         type: entity.type || null,
         total: 0,
         count: 0,

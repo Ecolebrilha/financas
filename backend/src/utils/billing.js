@@ -18,15 +18,32 @@ function effectiveDate(expense) {
 
 const { monthKey, nextDueDate, PRIMARY_CYCLE_DAY } = require('./dates');
 
-// Rótulo de período de fatura (mesmo formato "YYYY-MM" usado pelo Painel)
-// de um Expense já carregado com `paymentMethod`. Cada cartão tem seu
-// próprio dia de corte (`paymentMethod.dueDay`) — ex: Riachuelo vence dia
-// 15 em vez do dia 10 padrão dos outros cartões — então uma mesma data de
-// compra/fatura pode cair num período diferente dependendo do cartão.
-// Cartões sem dueDay (Pix, etc.) caem no corte padrão do Painel.
+// Rótulo de período de fatura ("YYYY-MM") de uma data de vencimento
+// efetiva, dado o método de pagamento. Dois modos:
+// - normal: cartão tem um dia de corte fixo pra todo mundo
+//   (`paymentMethod.dueDay`) — ex: Riachuelo vence dia 15 em vez do dia
+//   10 padrão — então uma mesma data de compra pode cair num período
+//   diferente dependendo do cartão. Cartões sem dueDay (Pix, etc.) caem
+//   no corte padrão do Painel.
+// - `dueDateFollowsPurchase`: cartões de loja (ex: Renner) sem corte
+//   mensal compartilhado — cada compra vence exatamente 1 mês depois,
+//   no mesmo dia. Nesse caso `date` já É a data de vencimento real (via
+//   billingDate, calculado na criação do gasto — ver routes/expenses.js
+//   e utils/installments.js), então o rótulo é só o mês dela direto,
+//   sem aplicar nenhum corte por cima.
+function periodLabelFor(date, paymentMethod, primaryCutoff = PRIMARY_CYCLE_DAY) {
+  if (paymentMethod?.dueDateFollowsPurchase) {
+    return monthKey(date);
+  }
+  const cutoffDay = paymentMethod?.dueDay || primaryCutoff;
+  return monthKey(nextDueDate(date, cutoffDay));
+}
+
+// Rótulo de período de fatura de um Expense já carregado com
+// `paymentMethod` — usa a data efetiva dele (billingDate se houver,
+// senão a data da compra).
 function invoicePeriodLabelForExpense(expense, primaryCutoff = PRIMARY_CYCLE_DAY) {
-  const cutoffDay = expense.paymentMethod?.dueDay || primaryCutoff;
-  return monthKey(nextDueDate(effectiveDate(expense), cutoffDay));
+  return periodLabelFor(effectiveDate(expense), expense.paymentMethod, primaryCutoff);
 }
 
 // Um Expense conta pro período `monthParam` do Painel considerando o dia
@@ -35,4 +52,10 @@ function matchesInvoicePeriod(expense, monthParam, primaryCutoff = PRIMARY_CYCLE
   return invoicePeriodLabelForExpense(expense, primaryCutoff) === monthParam;
 }
 
-module.exports = { billingDateWhere, effectiveDate, invoicePeriodLabelForExpense, matchesInvoicePeriod };
+module.exports = {
+  billingDateWhere,
+  effectiveDate,
+  periodLabelFor,
+  invoicePeriodLabelForExpense,
+  matchesInvoicePeriod,
+};

@@ -22,11 +22,14 @@ const CATEGORICAL_DARK = [
   '#e66767',
 ];
 
-const MUTED_LIGHT = '#898781';
-const MUTED_DARK = '#898781';
+const MUTED_LIGHT = '#7d87a8';
+const MUTED_DARK = '#7d87a8';
 
+// Tema fixo dark (ver tailwind.config.js) — não acompanha mais o tema do
+// navegador/sistema, então essa função sempre resolve pro lado dark da
+// paleta, independente do prefers-color-scheme real do dispositivo.
 export function isDarkMode() {
-  return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return true;
 }
 
 // Cor categórica pela posição (0-indexed) numa lista já ordenada de forma
@@ -39,22 +42,22 @@ export function categoricalColor(index, dark = isDarkMode()) {
 }
 
 export const CHART_INK = {
-  primary: '#0b0b0b',
-  primaryDark: '#ffffff',
-  secondary: '#52514e',
-  secondaryDark: '#c3c2b7',
-  muted: '#898781',
-  grid: '#e1e0d9',
-  gridDark: '#2c2c2a',
-  baseline: '#c3c2b7',
-  baselineDark: '#383835',
+  primary: '#eef1fb',
+  primaryDark: '#eef1fb',
+  secondary: '#aab2cc',
+  secondaryDark: '#aab2cc',
+  muted: '#7d87a8',
+  grid: '#2a3150',
+  gridDark: '#2a3150',
+  baseline: '#3a4268',
+  baselineDark: '#3a4268',
 };
 
-export const SEQUENTIAL_BLUE = ['#cde2fb', '#9ec5f4', '#5598e7', '#2a78d6', '#184f95'];
+export const SEQUENTIAL_BLUE = ['#15325c', '#1d4e89', '#2a78d6', '#5598e7', '#9ec5f4'];
 
 export const STATUS = {
-  good: '#0ca30c',
-  warning: '#fab219',
-  serious: '#ec835a',
-  critical: '#d03b3b',
+  good: '#34d399',
+  warning: '#fbbf63',
+  serious: '#fb923c',
+  critical: '#f87171',
 };
