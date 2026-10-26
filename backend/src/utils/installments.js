@@ -71,6 +71,10 @@ async function getOpenInstallmentGroups(referenceDate = new Date()) {
     const first = items[0];
     result.push({
       installmentGroupId: groupId,
+      // Parcela mais próxima ainda em aberto — usada pra editar/apagar
+      // o grupo a partir dela (mesma regra de "apaga esta e as futuras"
+      // já usada no resto do app).
+      nextExpenseId: remaining[0].id,
       description: first.description,
       person: first.person,
       paymentMethod: first.paymentMethod,

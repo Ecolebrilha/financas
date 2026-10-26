@@ -15,7 +15,7 @@ import CreditLimits from '../components/CreditLimits';
 import Modal from '../components/Modal';
 import { RecurringForm } from '../components/RecurringManager';
 import { RecurringIncomeForm } from '../components/RecurringIncomeManager';
-import { IconEdit, IconPlus } from '../components/icons';
+import { IconEdit, IconPlus, IconTrash } from '../components/icons';
 import { currentPeriodLabel, formatCurrency, formatDate } from '../lib/format';
 
 export default function Dashboard() {
@@ -113,6 +113,32 @@ export default function Dashboard() {
     }
   }
 
+  // "Excluir" aqui também mexe no TEMPLATE (igual editar): para as
+  // ocorrências futuras (mesmo efeito do "Pausar" em Mais → Receitas/
+  // Gastos fixos). O lançamento já materializado deste mês continua
+  // existindo normalmente, só não gera mais nos próximos meses.
+  async function handleDeleteRecurringIncome(materialized) {
+    if (!window.confirm(`Parar de lançar "${materialized.description}" nos próximos meses?`)) return;
+    try {
+      await api.recurringIncomes.remove(materialized.recurringIncomeId);
+      showToast('Receita fixa excluída.');
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
+  async function handleDeleteRecurringExpense(materialized) {
+    if (!window.confirm(`Parar de lançar "${materialized.description}" nos próximos meses?`)) return;
+    try {
+      await api.recurring.remove(materialized.recurringTemplateId);
+      showToast('Gasto fixo excluído.');
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Painel mensal</h1>
@@ -192,7 +218,7 @@ export default function Dashboard() {
 
           <Card title="Parcelas em aberto">
             <p className="text-xs text-muted -mt-2 mb-1">Todas as parcelas futuras, de qualquer mês.</p>
-            <InstallmentsList items={summary.openInstallments} />
+            <InstallmentsList items={summary.openInstallments} onChanged={load} />
           </Card>
 
           <Card
@@ -223,14 +249,24 @@ export default function Dashboard() {
                     <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: '#0ca30c' }}>
                       {formatCurrency(i.amount)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => openEditRecurringIncome(i)}
-                      className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk shrink-0"
-                      aria-label="Editar receita fixa"
-                    >
-                      <IconEdit width={15} height={15} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEditRecurringIncome(i)}
+                        className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk"
+                        aria-label="Editar receita fixa"
+                      >
+                        <IconEdit width={15} height={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecurringIncome(i)}
+                        className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical"
+                        aria-label="Excluir receita fixa"
+                      >
+                        <IconTrash width={15} height={15} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -262,14 +298,24 @@ export default function Dashboard() {
                       </p>
                     </div>
                     <span className="text-sm font-semibold tabular-nums shrink-0">{formatCurrency(e.amount)}</span>
-                    <button
-                      type="button"
-                      onClick={() => openEditRecurringExpense(e)}
-                      className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk shrink-0"
-                      aria-label="Editar gasto fixo"
-                    >
-                      <IconEdit width={15} height={15} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openEditRecurringExpense(e)}
+                        className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk"
+                        aria-label="Editar gasto fixo"
+                      >
+                        <IconEdit width={15} height={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRecurringExpense(e)}
+                        className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical"
+                        aria-label="Excluir gasto fixo"
+                      >
+                        <IconTrash width={15} height={15} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
