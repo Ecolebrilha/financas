@@ -51,6 +51,21 @@ export function currentMonthKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// "Hoje" em termos de período de fatura (dia 11 a dia 10, em UTC — mesma
+// regra do backend em dates.js/periodLabelForDate), pra abrir o Painel
+// sempre na fatura que está em aberto, não na que já fechou.
+export function currentPeriodLabel(cutoffDay = 10) {
+  const d = new Date();
+  const year = d.getUTCFullYear();
+  const monthIndex = d.getUTCMonth();
+  const day = d.getUTCDate();
+  if (day <= cutoffDay) {
+    return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+  }
+  const next = new Date(Date.UTC(year, monthIndex + 1, 1));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 // "2026-07-11T00:00:00.000Z", "2026-08-10T23:59:59.999Z" -> "11 jul – 10 ago de 2026"
 export function formatPeriodRange(startIso, endIso) {
   const start = new Date(startIso);

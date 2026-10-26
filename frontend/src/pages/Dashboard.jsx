@@ -16,12 +16,12 @@ import Modal from '../components/Modal';
 import { RecurringForm } from '../components/RecurringManager';
 import { RecurringIncomeForm } from '../components/RecurringIncomeManager';
 import { IconEdit, IconPlus } from '../components/icons';
-import { currentMonthKey, formatCurrency, formatDate } from '../lib/format';
+import { currentPeriodLabel, formatCurrency, formatDate } from '../lib/format';
 
 export default function Dashboard() {
   const { paymentMethods, activePeople } = useAppData();
   const showToast = useToast();
-  const [month, setMonth] = useState(currentMonthKey());
+  const [month, setMonth] = useState(currentPeriodLabel());
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -130,6 +130,8 @@ export default function Dashboard() {
               expensesCard={summary.totals.expensesCard}
               householdExpenses={summary.totals.householdExpenses}
               income={summary.totals.income}
+              incomeRegular={summary.totals.incomeRegular}
+              incomePayments={summary.totals.incomePayments}
               balance={summary.totals.balance}
               isFuture={summary.totals.isFuture}
               projectedBalance={summary.totals.projectedBalance}

@@ -1,6 +1,13 @@
 const express = require('express');
 const prisma = require('../db');
-const { parseMonthParam, currentMonthKey, shiftMonthKey, invoicePeriodForMonthParam, addMonths } = require('../utils/dates');
+const {
+  parseMonthParam,
+  currentMonthKey,
+  periodLabelForDate,
+  shiftMonthKey,
+  invoicePeriodForMonthParam,
+  addMonths,
+} = require('../utils/dates');
 const { round2, sum, groupSumByEntity, groupSumByKey } = require('../utils/aggregate');
 const { materializeRecurringForMonth } = require('../utils/recurring');
 const { materializeRecurringIncomeForMonth } = require('../utils/recurringIncome');
@@ -94,7 +101,15 @@ async function getPeriodData(monthParam) {
     sum(selfPeriodExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type)), 'amount'),
   );
   const selfExpensesCard = round2(selfExpenses - selfExpensesImmediate);
-  const income = round2(sum(incomes, 'amount'));
+  // Receita não é só o que entra "de fora" (salário etc): quando alguém
+  // te manda o Pix da dívida de um gasto compartilhado, aquele valor
+  // também é dinheiro entrando de verdade pro seu bolso — já foi
+  // contabilizado como SEU gasto (CREDIT_CARD/PIX da compra original) na
+  // hora da compra, então agora que voltou, conta como receita, não como
+  // "redução de despesa" (a compra em si continua registrada igual).
+  const incomeRegular = round2(sum(incomes, 'amount'));
+  const incomePayments = round2(sum(payments, 'amount'));
+  const income = round2(incomeRegular + incomePayments);
 
   return {
     start,
@@ -106,16 +121,22 @@ async function getPeriodData(monthParam) {
     selfExpenses,
     selfExpensesImmediate,
     selfExpensesCard,
+    incomeRegular,
+    incomePayments,
     income,
     balance: round2(income - selfExpenses),
   };
 }
 
 router.get('/', async (req, res) => {
-  const monthParam = req.query.month || currentMonthKey();
+  // "Hoje" pro Painel é o período de FATURA em que a data atual cai (dia
+  // 11 a dia 10), não o mês civil — senão, entre o dia 11 e o fim do
+  // mês, o padrão abriria sempre na fatura que já fechou/venceu em vez
+  // da que está em aberto.
+  const todayKey = periodLabelForDate(new Date());
+  const monthParam = req.query.month || todayKey;
   const data = await getPeriodData(monthParam);
 
-  const todayKey = currentMonthKey();
   const isFuture = monthParam > todayKey;
 
   // Pra período futuro, simula o saldo acumulado: soma o saldo (receita -
@@ -188,6 +209,8 @@ router.get('/', async (req, res) => {
       expensesCard: data.selfExpensesCard,
       householdExpenses: data.householdExpenses,
       income: data.income,
+      incomeRegular: data.incomeRegular,
+      incomePayments: data.incomePayments,
       balance: data.balance,
       isFuture,
       projectedBalance: isFuture ? projectedBalance : data.balance,

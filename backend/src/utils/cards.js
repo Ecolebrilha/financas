@@ -1,5 +1,5 @@
 const prisma = require('../db');
-const { dueDateForPeriodLabel, PRIMARY_CYCLE_DAY, currentMonthKey } = require('./dates');
+const { dueDateForPeriodLabel, PRIMARY_CYCLE_DAY, periodLabelForDate } = require('./dates');
 const { round2 } = require('./aggregate');
 const { effectiveDate, periodLabelFor } = require('./billing');
 
@@ -114,7 +114,9 @@ async function getCardInvoices(monthParam) {
 async function getUsedCreditLimits(cards) {
   const cardIds = cards.map((c) => c.id);
   if (cardIds.length === 0) return new Map();
-  const today = currentMonthKey();
+  // "Hoje" aqui também é o período de fatura (dia 11 a dia 10) em que a
+  // data atual cai, não o mês civil — mesma correção aplicada no Painel.
+  const today = periodLabelForDate(new Date());
   const cardsById = new Map(cards.map((c) => [c.id, c]));
   const expenses = await prisma.expense.findMany({ where: { paymentMethodId: { in: cardIds } } });
 

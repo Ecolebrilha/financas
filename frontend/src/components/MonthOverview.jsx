@@ -22,6 +22,8 @@ export default function MonthOverview({
   expensesCard,
   householdExpenses,
   income,
+  incomeRegular,
+  incomePayments,
   balance,
   isFuture,
   projectedBalance,
@@ -71,6 +73,12 @@ export default function MonthOverview({
         <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
           <span>já pago (Pix/Débito) {formatCurrency(expensesImmediate)}</span>
           <span>cartão a vencer {formatCurrency(expensesCard)}</span>
+        </div>
+      )}
+      {incomeRegular != null && incomePayments != null && incomePayments > 0 && (
+        <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
+          <span>fixa/avulsa {formatCurrency(incomeRegular)}</span>
+          <span>abatimentos recebidos {formatCurrency(incomePayments)}</span>
         </div>
       )}
       {isNegative && (

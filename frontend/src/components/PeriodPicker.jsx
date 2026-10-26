@@ -1,4 +1,4 @@
-import { formatPeriodRange, shiftMonthKey } from '../lib/format';
+import { formatMonthLabel, formatPeriodRange, shiftMonthKey } from '../lib/format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 
 // Navegador do Painel mensal: em vez de mês civil, mostra o período de
@@ -16,8 +16,10 @@ export default function PeriodPicker({ month, onChange, period }) {
         <IconChevronLeft />
       </button>
       <div className="text-center leading-tight">
-        <span className="font-semibold block">{period ? formatPeriodRange(period.start, period.end) : '…'}</span>
-        <span className="text-[11px] text-muted">período da fatura (dia 11 a dia 10)</span>
+        <span className="font-semibold block">{formatMonthLabel(month)}</span>
+        <span className="text-[11px] text-muted">
+          {period ? `fatura ${formatPeriodRange(period.start, period.end)}` : 'período da fatura (dia 11 a dia 10)'}
+        </span>
       </div>
       <button
         type="button"
