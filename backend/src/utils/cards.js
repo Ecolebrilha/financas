@@ -111,25 +111,49 @@ async function getCardInvoices(monthParam) {
   return results;
 }
 
-// Uma parcela "de verdade" (compra parcelada) em vez de um lançamento
-// qualquer que por acaso caiu num mês futuro — como um gasto fixo
-// recorrente já materializado com antecedência (ex: assinatura mensal)
-// por causa de navegação no Painel. Só isso realmente "trava" o limite
-// com antecedência; o resto só conta quando a fatura dele abrir de fato.
+// Uma parcela "de verdade" (compra parcelada) — essas sempre travam o
+// limite com antecedência, são compromisso firmado.
 function isRealInstallment(e) {
   return !!e.installmentTotal && e.installmentTotal > 1;
 }
 
+// Entre os lançamentos de fatura FUTURA (ainda não é a que está em
+// aberto), decide quais realmente "travam" o limite com antecedência:
+// - parcela de verdade: sempre conta, é compromisso firmado;
+// - avulso sem template recorrente: sempre conta — só existe numa
+//   fatura futura porque alguém decidiu isso explicitamente (fatura
+//   prevista manual), nunca por efeito colateral de navegação;
+// - gasto fixo recorrente (recurringTemplateId): só a ocorrência mais
+//   próxima conta. O Painel materializa o mês sendo visto com
+//   antecedência pra já mostrar a projeção — navegar vários meses pra
+//   frente acaba pré-gerando a mesma assinatura várias vezes (ex: 6
+//   meses de "Netflix" de uma vez), e cada uma dessas não é um
+//   compromisso novo, é a MESMA assinatura — só a próxima cobrança real
+//   deveria pesar no limite agora.
+function filterFutureEntries(entries) {
+  const nearestByTemplate = new Map();
+  for (const { expense: e, periodLabel } of entries) {
+    if (!e.recurringTemplateId) continue;
+    const current = nearestByTemplate.get(e.recurringTemplateId);
+    if (!current || periodLabel < current.periodLabel) {
+      nearestByTemplate.set(e.recurringTemplateId, { periodLabel, id: e.id });
+    }
+  }
+  return entries.filter(({ expense: e }) => {
+    if (isRealInstallment(e)) return true;
+    if (!e.recurringTemplateId) return true;
+    return nearestByTemplate.get(e.recurringTemplateId)?.id === e.id;
+  });
+}
+
 // Quanto do limite de cada cartão está ocupado AGORA, calculado a partir
 // dos próprios lançamentos em vez de mantido manualmente: soma a fatura
-// do período atual (ainda em aberto, nem venceu) inteira, mais só as
-// parcelas (de verdade) já lançadas em faturas futuras — gasto fixo ou
-// avulso que por acaso já tenha linha gerada num mês futuro não conta
-// ainda, porque não é compromisso firmado contra o limite hoje, só uma
-// projeção. Não entra fatura já vencida: a premissa do app é que ela já
-// foi paga com a receita do mês, liberando o limite de novo (não usa
-// settledAt pra essa conta — aquele campo é sobre a pessoa ter te pago
-// de volta, não sobre você ter pago o banco).
+// do período atual (ainda em aberto, nem venceu) inteira, mais o que já
+// é compromisso firmado em faturas futuras (ver filterFutureEntries).
+// Não entra fatura já vencida: a premissa do app é que ela já foi paga
+// com a receita do mês, liberando o limite de novo (não usa settledAt
+// pra essa conta — aquele campo é sobre a pessoa ter te pago de volta,
+// não sobre você ter pago o banco).
 async function getUsedCreditLimits(cards) {
   const cardIds = cards.map((c) => c.id);
   if (cardIds.length === 0) return new Map();
@@ -140,14 +164,16 @@ async function getUsedCreditLimits(cards) {
   const expenses = await prisma.expense.findMany({ where: { paymentMethodId: { in: cardIds } } });
 
   const used = new Map(cardIds.map((id) => [id, 0]));
-  for (const e of expenses) {
-    const card = cardsById.get(e.paymentMethodId);
-    const label = periodLabelFor(effectiveDate(e), card);
-    if (label === today || (label > today && isRealInstallment(e))) {
-      used.set(e.paymentMethodId, used.get(e.paymentMethodId) + e.amount);
-    }
+  for (const id of cardIds) {
+    const card = cardsById.get(id);
+    const own = expenses
+      .filter((e) => e.paymentMethodId === id)
+      .map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }));
+    const current = own.filter(({ periodLabel }) => periodLabel === today);
+    const future = filterFutureEntries(own.filter(({ periodLabel }) => periodLabel > today));
+    const total = [...current, ...future].reduce((s, { expense: e }) => s + e.amount, 0);
+    used.set(id, round2(total));
   }
-  for (const [id, total] of used) used.set(id, round2(total));
   return used;
 }
 
@@ -164,9 +190,11 @@ async function getUsedLimitDetail(cardId) {
     orderBy: { date: 'asc' },
   });
 
-  const items = expenses
-    .map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }))
-    .filter(({ expense: e, periodLabel }) => periodLabel === today || (periodLabel > today && isRealInstallment(e)))
+  const entries = expenses.map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }));
+  const current = entries.filter(({ periodLabel }) => periodLabel === today);
+  const future = filterFutureEntries(entries.filter(({ periodLabel }) => periodLabel > today));
+
+  const items = [...current, ...future]
     .map(({ expense: e, periodLabel }) => ({
       id: e.id,
       description: e.description,
