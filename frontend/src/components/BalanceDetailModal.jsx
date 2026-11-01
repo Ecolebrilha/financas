@@ -92,7 +92,7 @@ export default function BalanceDetailModal({ onClose, incomes, expenses, owedByP
 
       <Section title="Seus gastos" color={STATUS.critical} total={totals.expenses}>
         <SubList
-          label={`Já pago (Pix/Débito/Flash) — ${formatCurrency(totals.expensesImmediate)}`}
+          label={`Já pago (Pix/Débito/Flash) — ${formatCurrency(totals.expensesImmediate)}${totals.paidExcluded ? ' · já saiu do bolso, não entra no saldo' : ''}`}
           items={immediate}
           renderExtra={(e) => e.paymentMethod?.name}
         />

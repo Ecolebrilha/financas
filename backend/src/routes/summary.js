@@ -81,8 +81,15 @@ router.get('/', async (req, res) => {
       guard += 1;
     }
   }
+  // No período em aberto, o que já foi pago na hora (Pix/Débito/Flash) já
+  // saiu do bolso — não é mais algo a cobrir, então fica fora do saldo e
+  // do saque sugerido (continua listado, só não entra na conta). Os
+  // reembolsos dos outros seguem contando como receita normalmente.
+  const excludesPaid = monthParam === todayKey;
+  const periodExpenses = excludesPaid ? data.selfExpensesCard : data.selfExpenses;
+  const periodBalance = excludesPaid ? round2(data.income - data.selfExpensesCard) : data.balance;
   const projectedBalance = round2(carryOver + data.balance);
-  const headlineBalance = isFuture ? projectedBalance : data.balance;
+  const headlineBalance = isFuture ? projectedBalance : periodBalance;
 
   // Quando o saldo fica negativo, sugere como sacar a diferença no limite
   // do cartão (ver buildWithdrawalAdvice).
@@ -94,16 +101,17 @@ router.get('/', async (req, res) => {
     month: monthParam,
     period: { start: data.start, end: new Date(data.end.getTime() - 1) },
     totals: {
-      expenses: data.selfExpenses,
+      expenses: periodExpenses,
       expensesImmediate: data.selfExpensesImmediate,
       expensesCard: data.selfExpensesCard,
       householdExpenses: data.householdExpenses,
       income: data.income,
       incomeRegular: data.incomeRegular,
       incomeFromOthers: data.incomeFromOthers,
-      balance: data.balance,
+      balance: periodBalance,
+      paidExcluded: excludesPaid,
       isFuture,
-      projectedBalance: isFuture ? projectedBalance : data.balance,
+      projectedBalance: isFuture ? projectedBalance : periodBalance,
       carryOver: isFuture ? carryOver : 0,
     },
     expenses: data.expenses,

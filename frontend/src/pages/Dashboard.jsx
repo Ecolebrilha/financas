@@ -161,6 +161,7 @@ export default function Dashboard() {
               incomeFromOthers={summary.totals.incomeFromOthers}
               balance={summary.totals.balance}
               isFuture={summary.totals.isFuture}
+              paidExcluded={summary.totals.paidExcluded}
               projectedBalance={summary.totals.projectedBalance}
               carryOver={summary.totals.carryOver}
               incomesList={summary.incomesForBalance}
