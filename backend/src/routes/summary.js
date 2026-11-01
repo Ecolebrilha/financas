@@ -12,10 +12,15 @@ const { round2, sum, groupSumByEntity, groupSumByKey } = require('../utils/aggre
 const { materializeRecurringForMonth } = require('../utils/recurring');
 const { materializeRecurringIncomeForMonth } = require('../utils/recurringIncome');
 const { getOpenInstallmentGroups } = require('../utils/installments');
-const { getCardInvoices } = require('../utils/cards');
+const { getCardInvoices, getUsedCreditLimits, getDynamicCreditLimits } = require('../utils/cards');
 const { billingDateWhere, matchesInvoicePeriod } = require('../utils/billing');
 
 const router = express.Router();
+
+// Mesma taxa usada no saque do limite via Mercado Pago (ver cardWithdrawal
+// mais abaixo) — reaproveitada pra calcular quanto uma receita vinculada
+// a um cartão (ver creditLimitIncomeType) realmente vale em dinheiro.
+const WITHDRAWAL_FEE_RATES = { 1: 0.0357, 2: 0.0779 };
 
 // Comparativo entre meses (para a página de histórico). Ex: /history?months=12
 router.get('/history', async (req, res) => {
@@ -111,7 +116,32 @@ async function getPeriodData(monthParam) {
   // um abatimento (Payment) já recebido não soma de novo aqui, ele só
   // abate o "pendente" mostrado em Gasto por pessoa; a dívida inteira já
   // está contada na hora que o gasto dela é lançado, não quando ela paga.
-  const incomeRegular = round2(sum(incomes, 'amount'));
+  // Receita de um cartão tipo Flash (ver creditLimitIncomeType) não vale
+  // o valor bruto depositado — vale quanto sobra de saldo nele AGORA,
+  // líquido da taxa de saque em 1x (é assim que você de fato transforma
+  // esse saldo em dinheiro: sacando na maquineta). incomesForBalance é
+  // uma cópia ajustada só pra esse cálculo e pro "De onde vem esse
+  // número" — a receita bruta real (`incomes`) continua intacta em
+  // Receitas fixas/Mais → Receitas.
+  const linkedCards = await prisma.paymentMethod.findMany({ where: { creditLimitIncomeType: { not: null } } });
+  let incomesForBalance = incomes;
+  if (linkedCards.length > 0) {
+    const [usedByCard, dynamicByCard] = await Promise.all([
+      getUsedCreditLimits(linkedCards),
+      getDynamicCreditLimits(linkedCards),
+    ]);
+    const cardByType = new Map(linkedCards.map((c) => [c.creditLimitIncomeType, c]));
+    incomesForBalance = incomes.map((i) => {
+      const card = cardByType.get(i.type);
+      if (!card) return i;
+      const limit = dynamicByCard.get(card.id) ?? card.creditLimit ?? 0;
+      const used = usedByCard.get(card.id) ?? 0;
+      const available = Math.max(round2(limit - used), 0);
+      const netWithdrawable = round2(available * (1 - WITHDRAWAL_FEE_RATES[1]));
+      return { ...i, amount: netWithdrawable };
+    });
+  }
+  const incomeRegular = round2(sum(incomesForBalance, 'amount'));
   const OTHERS_RECEIVABLE_TYPES = ['PIX', 'VOUCHER'];
   const otherPeopleExpenses = expenses.filter(
     (e) => !e.person?.isSelf && OTHERS_RECEIVABLE_TYPES.includes(e.paymentMethod?.type),
@@ -125,6 +155,7 @@ async function getPeriodData(monthParam) {
     end,
     expenses,
     incomes,
+    incomesForBalance,
     payments,
     householdExpenses,
     selfExpenses,
@@ -173,7 +204,6 @@ router.get('/', async (req, res) => {
   // SEGUINTE também no vermelho, parcelar em 2x (mais caro no total, mas
   // mais leve por mês) costuma ser a escolha certa — mesmo critério que
   // você já usa na prática, só automatizado.
-  const WITHDRAWAL_FEE_RATES = { 1: 0.0357, 2: 0.0779 };
   let cardWithdrawal = null;
   if (headlineBalance < 0) {
     const amountNeeded = round2(Math.abs(headlineBalance));
@@ -228,6 +258,7 @@ router.get('/', async (req, res) => {
     },
     expenses: data.expenses,
     incomes: data.incomes,
+    incomesForBalance: data.incomesForBalance,
     payments: data.payments,
     byPerson: groupSumByEntity(data.expenses, (e) => e.person, (e) => e.amount),
     owedByPerson: data.owedByPerson,
