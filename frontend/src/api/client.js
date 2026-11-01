@@ -76,7 +76,7 @@ export const api = {
     list: (params) => request(`/expenses${qs(params)}`),
     get: (id) => request(`/expenses/${id}`),
     create: (data) => request('/expenses', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id, data) => request(`/expenses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: (id, data, params) => request(`/expenses/${id}${qs(params)}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id, params) => request(`/expenses/${id}${qs(params)}`, { method: 'DELETE' }),
     settle: (id, settled) => request(`/expenses/${id}/settle`, { method: 'PUT', body: JSON.stringify({ settled }) }),
   },

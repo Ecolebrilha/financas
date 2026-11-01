@@ -87,7 +87,7 @@ export default function BalanceDetailModal({ onClose, incomes, expenses, owedByP
           items={incomes}
           renderExtra={(i) => INCOME_TYPE_LABELS[i.type] || i.type}
         />
-        <PersonTotalsList label={`A receber de outras pessoas — ${formatCurrency(totals.incomeFromOthers)}`} items={owedByPerson} />
+        <PersonTotalsList label={`A receber de outras pessoas (Pix/Flash) — ${formatCurrency(totals.incomeFromOthers)}`} items={owedByPerson} />
       </Section>
 
       <Section title="Seus gastos" color={STATUS.critical} total={totals.expenses}>

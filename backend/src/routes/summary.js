@@ -101,15 +101,20 @@ async function getPeriodData(monthParam) {
     sum(selfPeriodExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type)), 'amount'),
   );
   const selfExpensesCard = round2(selfExpenses - selfExpensesImmediate);
-  // Receita não é só o que entra "de fora" (salário, Flash etc) — tudo
-  // que as outras pessoas gastaram (Pix, Flash, cartão, o que for) também
-  // conta, porque elas vão te devolver esse valor de qualquer jeito (ver
-  // "Gasto por pessoa"). Isso é o TOTAL gasto delas, não só o que falta —
+  // Receita não é só o que entra "de fora" (salário, Flash etc) — o que
+  // as outras pessoas gastaram em Pix ou Flash também conta, porque elas
+  // vão te devolver esse valor de qualquer jeito (ver "Gasto por
+  // pessoa"). NÃO entra o que gastaram no cartão de crédito — essa é
+  // fatura que você paga depois, não dinheiro que volta pra você como um
+  // Pix. Isso é o TOTAL gasto delas em Pix/Flash, não só o que falta —
   // um abatimento (Payment) já recebido não soma de novo aqui, ele só
   // abate o "pendente" mostrado em Gasto por pessoa; a dívida inteira já
   // está contada na hora que o gasto dela é lançado, não quando ela paga.
   const incomeRegular = round2(sum(incomes, 'amount'));
-  const otherPeopleExpenses = expenses.filter((e) => !e.person?.isSelf);
+  const OTHERS_RECEIVABLE_TYPES = ['PIX', 'VOUCHER'];
+  const otherPeopleExpenses = expenses.filter(
+    (e) => !e.person?.isSelf && OTHERS_RECEIVABLE_TYPES.includes(e.paymentMethod?.type),
+  );
   const incomeFromOthers = round2(sum(otherPeopleExpenses, 'amount'));
   const owedByPerson = groupSumByEntity(otherPeopleExpenses, (e) => e.person, (e) => e.amount);
   const income = round2(incomeRegular + incomeFromOthers);

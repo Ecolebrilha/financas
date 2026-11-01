@@ -9,6 +9,7 @@ import ExpenseEditForm from '../components/ExpenseEditForm';
 import { SelectField, TextField, SegmentedControl } from '../components/fields';
 import { IconEdit, IconTrash } from '../components/icons';
 import { currentMonthKey, formatCurrency, formatDate } from '../lib/format';
+import { confirmGroupDateScope } from '../lib/installments';
 import { STATUS } from '../lib/colors';
 
 const PERIOD_MODES = [
@@ -53,9 +54,10 @@ export default function ExpensesList() {
   useEffect(load, [periodMode, month, from, to, personId, paymentMethodId, categoryId, search]);
 
   async function handleSave(data) {
+    const scope = confirmGroupDateScope(editing, data);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, data);
+      await api.expenses.update(editing.id, data, scope ? { scope } : undefined);
       showToast('Gasto atualizado!');
       setEditing(null);
       load();
@@ -148,14 +150,14 @@ export default function ExpensesList() {
           {expenses.map((e) => (
             <li key={e.id} className="bg-surface dark:bg-surfacedk rounded-2xl border border-black/5 dark:border-white/10 p-3 flex items-center gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">
-                  {e.description}
+                <p className="text-sm font-medium flex items-baseline gap-1.5 min-w-0">
+                  <span className="truncate min-w-0">{e.description}</span>
                   {e.installmentTotal && (
-                    <span className="ml-1.5 text-xs text-muted">
+                    <span className="text-xs text-muted shrink-0">
                       ({e.installmentNumber}/{e.installmentTotal})
                     </span>
                   )}
-                  {e.amount < 0 && <span className="ml-1.5 text-xs font-medium" style={{ color: STATUS.good }}>estorno</span>}
+                  {e.amount < 0 && <span className="text-xs font-medium shrink-0" style={{ color: STATUS.good }}>estorno</span>}
                 </p>
                 <p className="text-xs text-muted truncate">
                   {formatDate(e.date)} · {e.person.name} · {e.category.name} · {e.paymentMethod.name}

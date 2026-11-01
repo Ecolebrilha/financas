@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency, formatDate } from '../lib/format';
+import { confirmGroupDateScope } from '../lib/installments';
 import { STATUS } from '../lib/colors';
 import { IconCheck, IconChevronRight, IconEdit, IconTrash } from './icons';
 import Modal from './Modal';
@@ -87,14 +88,14 @@ function ItemRow({ item, onSettled, personName, onEdit, showSettle }) {
         <span className="shrink-0 w-5 h-5" />
       )}
       <div className="min-w-0 flex-1">
-        <p className={`text-sm truncate ${settled ? 'line-through text-muted' : ''}`}>
-          {item.description}
+        <p className={`text-sm flex items-baseline gap-1.5 min-w-0 ${settled ? 'line-through text-muted' : ''}`}>
+          <span className="truncate min-w-0">{item.description}</span>
           {item.installmentTotal && (
-            <span className="ml-1.5 text-xs text-muted">
+            <span className="text-xs text-muted shrink-0">
               ({item.installmentNumber}/{item.installmentTotal})
             </span>
           )}
-          {isRefund && <span className="ml-1.5 text-[11px] font-medium" style={{ color: STATUS.good }}>estorno</span>}
+          {isRefund && <span className="text-[11px] font-medium shrink-0" style={{ color: STATUS.good }}>estorno</span>}
         </p>
         <p className="text-xs text-muted">
           {personName && `${personName} · `}
@@ -140,9 +141,10 @@ export default function CardDueList({ cardInvoices, people, onSettled }) {
   }
 
   async function handleSave(payload) {
+    const scope = confirmGroupDateScope(editing, payload);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, payload);
+      await api.expenses.update(editing.id, payload, scope ? { scope } : undefined);
       showToast('Gasto atualizado!');
       setEditing(null);
       onSettled();

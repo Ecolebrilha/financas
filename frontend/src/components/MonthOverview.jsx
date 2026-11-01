@@ -93,7 +93,7 @@ export default function MonthOverview({
       {incomeRegular != null && incomeFromOthers != null && incomeFromOthers > 0 && (
         <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
           <span>salário/fixa {formatCurrency(incomeRegular)}</span>
-          <span>a receber de outros {formatCurrency(incomeFromOthers)}</span>
+          <span>a receber de outros (Pix/Flash) {formatCurrency(incomeFromOthers)}</span>
         </div>
       )}
       {isNegative && (

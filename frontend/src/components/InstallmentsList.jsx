@@ -5,6 +5,7 @@ import Modal from './Modal';
 import ExpenseEditForm from './ExpenseEditForm';
 import { IconEdit, IconTrash } from './icons';
 import { formatCurrency, formatMonthLabel } from '../lib/format';
+import { confirmGroupDateScope } from '../lib/installments';
 
 export default function InstallmentsList({ items, onChanged }) {
   const showToast = useToast();
@@ -25,9 +26,10 @@ export default function InstallmentsList({ items, onChanged }) {
   }
 
   async function handleSave(payload) {
+    const scope = confirmGroupDateScope(editing, payload);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, payload);
+      await api.expenses.update(editing.id, payload, scope ? { scope } : undefined);
       showToast('Parcela atualizada!');
       setEditing(null);
       onChanged?.();

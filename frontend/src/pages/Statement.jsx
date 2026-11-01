@@ -163,15 +163,15 @@ export default function Statement() {
                       {g.items.map((e) => (
                         <li key={e.id} className="py-2 flex items-center justify-between gap-3">
                           <div className="min-w-0 flex-1">
-                            <p className={`text-sm truncate ${e.settledAt ? 'line-through text-muted' : ''}`}>
-                              {e.description}
+                            <p className={`text-sm flex items-baseline gap-1.5 min-w-0 ${e.settledAt ? 'line-through text-muted' : ''}`}>
+                              <span className="truncate min-w-0">{e.description}</span>
                               {e.installmentTotal && (
-                                <span className="ml-1.5 text-xs text-muted">
+                                <span className="text-xs text-muted shrink-0">
                                   ({e.installmentNumber}/{e.installmentTotal})
                                 </span>
                               )}
                               {e.amount < 0 && (
-                                <span className="ml-1.5 text-[11px] font-medium" style={{ color: STATUS.good }}>
+                                <span className="text-[11px] font-medium shrink-0" style={{ color: STATUS.good }}>
                                   estorno
                                 </span>
                               )}

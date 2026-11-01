@@ -74,10 +74,10 @@ export default function CreditLimitDetailModal({ paymentMethodId, onClose }) {
                     {g.items.map((item) => (
                       <li key={item.id} className="py-2 px-2 flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate">
-                            {item.description}
+                          <p className="text-sm font-medium flex items-baseline gap-1.5 min-w-0">
+                            <span className="truncate min-w-0">{item.description}</span>
                             {item.installmentTotal && (
-                              <span className="ml-1.5 text-xs text-muted">
+                              <span className="text-xs text-muted shrink-0">
                                 (parcela {item.installmentNumber}/{item.installmentTotal})
                               </span>
                             )}

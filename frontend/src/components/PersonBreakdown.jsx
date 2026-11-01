@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { categoricalColor, STATUS } from '../lib/colors';
 import { formatCurrency, formatDate, toInputDate } from '../lib/format';
+import { confirmGroupDateScope } from '../lib/installments';
 import Modal from './Modal';
 import ExpenseEditForm from './ExpenseEditForm';
 import { NumberField, DateField, TextField } from './fields';
@@ -144,9 +145,10 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
   const expandedPayments = expandedId ? (payments || []).filter((p) => p.personId === expandedId) : [];
 
   async function handleSave(payload) {
+    const scope = confirmGroupDateScope(editing, payload);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, payload);
+      await api.expenses.update(editing.id, payload, scope ? { scope } : undefined);
       showToast('Gasto atualizado!');
       setEditing(null);
       onChanged?.();
@@ -341,14 +343,14 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
               <li key={e.id} className="py-2 flex items-center gap-3">
                 <SettleToggle expense={e} onChanged={onChanged} />
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium truncate ${e.settledAt ? 'line-through text-muted' : ''}`}>
-                    {e.description}
+                  <p className={`text-sm font-medium flex items-baseline gap-1.5 min-w-0 ${e.settledAt ? 'line-through text-muted' : ''}`}>
+                    <span className="truncate min-w-0">{e.description}</span>
                     {e.installmentTotal && (
-                      <span className="ml-1.5 text-xs text-muted">
+                      <span className="text-xs text-muted shrink-0">
                         ({e.installmentNumber}/{e.installmentTotal})
                       </span>
                     )}
-                    {e.amount < 0 && <span className="ml-1.5 text-[11px] font-medium" style={{ color: STATUS.good }}>estorno</span>}
+                    {e.amount < 0 && <span className="text-[11px] font-medium shrink-0" style={{ color: STATUS.good }}>estorno</span>}
                   </p>
                   <p className="text-xs text-muted truncate">
                     {formatDate(e.date)} · {e.category?.name} · {e.paymentMethod?.name}
