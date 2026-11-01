@@ -9,7 +9,7 @@ import { IconEdit, IconPlus, IconTrash } from './icons';
 import { INCOME_TYPE_LABELS } from '../lib/constants';
 import { currentMonthKey, formatCurrency, formatDate, toInputDate } from '../lib/format';
 
-function IncomeForm({ initial, onSubmit, onCancel, saving }) {
+export function IncomeForm({ initial, onSubmit, onCancel, saving }) {
   const { activePeople } = useAppData();
   const [form, setForm] = useState({
     description: initial?.description || '',

@@ -15,6 +15,8 @@ import CreditLimits from '../components/CreditLimits';
 import Modal from '../components/Modal';
 import { RecurringForm } from '../components/RecurringManager';
 import { RecurringIncomeForm } from '../components/RecurringIncomeManager';
+import { IncomeForm } from '../components/IncomesManager';
+import ExpenseEditForm from '../components/ExpenseEditForm';
 import { IconEdit, IconPlus, IconTrash } from '../components/icons';
 import { currentPeriodLabel, formatCurrency, formatDate } from '../lib/format';
 
@@ -26,16 +28,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Editar aqui no Painel mexe sempre no TEMPLATE recorrente (não só no
-  // lançamento já materializado deste mês) — é o mesmo dado de Mais →
-  // Receitas/Gastos fixos, só que sem precisar sair daqui. Como o item
-  // materializado só carrega o id do template, busca a lista completa
-  // (pequena) e pega o registro certo antes de abrir o form.
-  const [editingRecurringIncome, setEditingRecurringIncome] = useState(null);
-  const [editingRecurringExpense, setEditingRecurringExpense] = useState(null);
+  // Editar/excluir aqui mexe só no lançamento JÁ MATERIALIZADO deste mês
+  // (o que você vê na tela) — não no template recorrente, já que o valor
+  // de muita receita/gasto "fixo" varia de mês a mês (ex: "Salário
+  // (restante)"), então editar aqui não deveria mudar o padrão dos
+  // próximos meses. Pra mexer no template em si (dia do mês, valor
+  // padrão etc), use Mais → Receitas/Gastos fixos.
+  const [editingIncome, setEditingIncome] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [creatingRecurringIncome, setCreatingRecurringIncome] = useState(false);
   const [creatingRecurringExpense, setCreatingRecurringExpense] = useState(false);
-  const [savingRecurring, setSavingRecurring] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   function load() {
     setLoading(true);
@@ -53,89 +56,81 @@ export default function Dashboard() {
     ? summary.cardInvoices.reduce((s, c) => s + (c.totalPending || 0) + (c.priorPendingTotal || 0), 0)
     : 0;
 
-  async function openEditRecurringIncome(materialized) {
+  async function handleSaveIncome(data) {
+    setSaving(true);
     try {
-      const all = await api.recurringIncomes.list({ includeInactive: true });
-      const template = all.find((t) => t.id === materialized.recurringIncomeId);
-      if (!template) return showToast('Não achei o template dessa receita fixa.', 'error');
-      setEditingRecurringIncome(template);
+      await api.incomes.update(editingIncome.id, data);
+      showToast('Receita atualizada!');
+      setEditingIncome(null);
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveExpense(data) {
+    setSaving(true);
+    try {
+      await api.expenses.update(editingExpense.id, data);
+      showToast('Gasto atualizado!');
+      setEditingExpense(null);
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteIncome(materialized) {
+    if (!window.confirm(`Apagar "${materialized.description}" deste mês?`)) return;
+    try {
+      await api.incomes.remove(materialized.id);
+      showToast('Receita apagada.');
+      load();
     } catch (e) {
       showToast(e.message, 'error');
     }
   }
 
-  async function openEditRecurringExpense(materialized) {
+  async function handleDeleteExpense(materialized) {
+    if (!window.confirm(`Apagar "${materialized.description}" deste mês?`)) return;
     try {
-      const all = await api.recurring.list({ includeInactive: true });
-      const template = all.find((t) => t.id === materialized.recurringTemplateId);
-      if (!template) return showToast('Não achei o template desse gasto fixo.', 'error');
-      setEditingRecurringExpense(template);
+      await api.expenses.remove(materialized.id);
+      showToast('Gasto apagado.');
+      load();
     } catch (e) {
       showToast(e.message, 'error');
     }
   }
 
-  async function handleSaveRecurringIncome(data) {
-    setSavingRecurring(true);
+  async function handleCreateRecurringIncome(data) {
+    setSaving(true);
     try {
-      if (editingRecurringIncome) {
-        await api.recurringIncomes.update(editingRecurringIncome.id, data);
-      } else {
-        await api.recurringIncomes.create(data);
-      }
-      showToast('Receita fixa salva!');
-      setEditingRecurringIncome(null);
+      await api.recurringIncomes.create(data);
+      showToast('Receita fixa cadastrada!');
       setCreatingRecurringIncome(false);
       load();
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
-      setSavingRecurring(false);
+      setSaving(false);
     }
   }
 
-  async function handleSaveRecurringExpense(data) {
-    setSavingRecurring(true);
+  async function handleCreateRecurringExpense(data) {
+    setSaving(true);
     try {
-      if (editingRecurringExpense) {
-        await api.recurring.update(editingRecurringExpense.id, data);
-      } else {
-        await api.recurring.create(data);
-      }
-      showToast('Gasto fixo salvo!');
-      setEditingRecurringExpense(null);
+      await api.recurring.create(data);
+      showToast('Gasto fixo cadastrado!');
       setCreatingRecurringExpense(false);
       load();
     } catch (e) {
       showToast(e.message, 'error');
     } finally {
-      setSavingRecurring(false);
-    }
-  }
-
-  // "Excluir" aqui também mexe no TEMPLATE (igual editar): para as
-  // ocorrências futuras (mesmo efeito do "Pausar" em Mais → Receitas/
-  // Gastos fixos). O lançamento já materializado deste mês continua
-  // existindo normalmente, só não gera mais nos próximos meses.
-  async function handleDeleteRecurringIncome(materialized) {
-    if (!window.confirm(`Parar de lançar "${materialized.description}" nos próximos meses?`)) return;
-    try {
-      await api.recurringIncomes.remove(materialized.recurringIncomeId);
-      showToast('Receita fixa excluída.');
-      load();
-    } catch (e) {
-      showToast(e.message, 'error');
-    }
-  }
-
-  async function handleDeleteRecurringExpense(materialized) {
-    if (!window.confirm(`Parar de lançar "${materialized.description}" nos próximos meses?`)) return;
-    try {
-      await api.recurring.remove(materialized.recurringTemplateId);
-      showToast('Gasto fixo excluído.');
-      load();
-    } catch (e) {
-      showToast(e.message, 'error');
+      setSaving(false);
     }
   }
 
@@ -156,8 +151,6 @@ export default function Dashboard() {
               expensesCard={summary.totals.expensesCard}
               householdExpenses={summary.totals.householdExpenses}
               income={summary.totals.income}
-              incomeRegular={summary.totals.incomeRegular}
-              incomePayments={summary.totals.incomePayments}
               balance={summary.totals.balance}
               isFuture={summary.totals.isFuture}
               projectedBalance={summary.totals.projectedBalance}
@@ -254,7 +247,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => openEditRecurringIncome(i)}
+                        onClick={() => setEditingIncome(i)}
                         className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk"
                         aria-label="Editar receita fixa"
                       >
@@ -262,7 +255,7 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteRecurringIncome(i)}
+                        onClick={() => handleDeleteIncome(i)}
                         className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical"
                         aria-label="Excluir receita fixa"
                       >
@@ -303,7 +296,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         type="button"
-                        onClick={() => openEditRecurringExpense(e)}
+                        onClick={() => setEditingExpense(e)}
                         className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk"
                         aria-label="Editar gasto fixo"
                       >
@@ -311,7 +304,7 @@ export default function Dashboard() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteRecurringExpense(e)}
+                        onClick={() => handleDeleteExpense(e)}
                         className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical"
                         aria-label="Excluir gasto fixo"
                       >
@@ -326,42 +319,34 @@ export default function Dashboard() {
         </>
       )}
 
-      {(editingRecurringIncome || creatingRecurringIncome) && (
-        <Modal
-          title={editingRecurringIncome ? 'Editar receita fixa' : 'Nova receita fixa'}
-          onClose={() => {
-            setEditingRecurringIncome(null);
-            setCreatingRecurringIncome(false);
-          }}
-        >
+      {editingIncome && (
+        <Modal title="Editar receita deste mês" onClose={() => setEditingIncome(null)}>
+          <IncomeForm initial={editingIncome} onSubmit={handleSaveIncome} onCancel={() => setEditingIncome(null)} saving={saving} />
+        </Modal>
+      )}
+
+      {editingExpense && (
+        <Modal title="Editar gasto deste mês" onClose={() => setEditingExpense(null)}>
+          <ExpenseEditForm expense={editingExpense} onSave={handleSaveExpense} onCancel={() => setEditingExpense(null)} saving={saving} />
+        </Modal>
+      )}
+
+      {creatingRecurringIncome && (
+        <Modal title="Nova receita fixa" onClose={() => setCreatingRecurringIncome(false)}>
           <RecurringIncomeForm
-            initial={editingRecurringIncome}
-            onSubmit={handleSaveRecurringIncome}
-            onCancel={() => {
-              setEditingRecurringIncome(null);
-              setCreatingRecurringIncome(false);
-            }}
-            saving={savingRecurring}
+            onSubmit={handleCreateRecurringIncome}
+            onCancel={() => setCreatingRecurringIncome(false)}
+            saving={saving}
           />
         </Modal>
       )}
 
-      {(editingRecurringExpense || creatingRecurringExpense) && (
-        <Modal
-          title={editingRecurringExpense ? 'Editar gasto fixo' : 'Novo gasto fixo'}
-          onClose={() => {
-            setEditingRecurringExpense(null);
-            setCreatingRecurringExpense(false);
-          }}
-        >
+      {creatingRecurringExpense && (
+        <Modal title="Novo gasto fixo" onClose={() => setCreatingRecurringExpense(false)}>
           <RecurringForm
-            initial={editingRecurringExpense}
-            onSubmit={handleSaveRecurringExpense}
-            onCancel={() => {
-              setEditingRecurringExpense(null);
-              setCreatingRecurringExpense(false);
-            }}
-            saving={savingRecurring}
+            onSubmit={handleCreateRecurringExpense}
+            onCancel={() => setCreatingRecurringExpense(false)}
+            saving={saving}
           />
         </Modal>
       )}
