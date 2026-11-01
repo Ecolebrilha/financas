@@ -74,7 +74,7 @@ export default function MonthOverview({
       {isFuture && (
         <p className="text-xs text-muted -mt-1 mb-2">
           {formatCurrency(balance)} deste período {carryOver !== 0 && (carryOver < 0 ? '− ' : '+ ')}
-          {carryOver !== 0 && `${formatCurrency(Math.abs(carryOver))} ${carryOver < 0 ? 'de dívida' : 'de sobra'} acumulada até aqui`}
+          {carryOver !== 0 && `${formatCurrency(Math.abs(carryOver))} ${carryOver < 0 ? 'do saque no cartão a pagar' : 'de sobra'} do mês anterior`}
         </p>
       )}
       <div className="h-3 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">

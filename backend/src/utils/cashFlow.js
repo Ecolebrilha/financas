@@ -1,0 +1,143 @@
+const prisma = require('../db');
+const { periodLabelForDate } = require('./dates');
+const { round2, sum } = require('./aggregate');
+const { getCardInvoices } = require('./cards');
+const { getPeriodData, buildWithdrawalAdvice } = require('./periodData');
+
+// Só Pix/Débito faz sentido "ainda não paguei" — cartão já vira fatura (e
+// entra em "vai sair") e Flash já saiu do saldo dele na hora.
+const CASH_PENDING_TYPES = ['PIX', 'DEBIT_CARD'];
+const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD', 'VOUCHER'];
+
+// Forma enxuta de um lançamento pra mostrar nos detalhes da tela.
+function toItem(e) {
+  return {
+    id: e.id,
+    description: e.description,
+    amount: e.amount,
+    date: e.date,
+    installmentNumber: e.installmentNumber,
+    installmentTotal: e.installmentTotal,
+    paymentMethod: e.paymentMethod?.name ?? null,
+  };
+}
+
+// Tela Caixa: em vez do saldo do mês por competência (Painel), mostra o
+// DINHEIRO de verdade — quanto tem agora (conta informada por você +
+// Flash sacável), quanto precisa ficar separado pra pagar por fora, o que
+// ainda vai entrar e o que ainda vai sair até o fim do período, e no fim
+// quanto sobra ou falta (com a sugestão de saque quando falta).
+async function getCashOverview() {
+  const now = new Date();
+  const todayKey = periodLabelForDate(now);
+
+  const [data, position, unpaidRows, cardInvoices] = await Promise.all([
+    getPeriodData(todayKey),
+    prisma.cashPosition.findUnique({ where: { id: 'main' } }),
+    prisma.expense.findMany({
+      where: { unpaid: true, person: { isSelf: true }, paymentMethod: { type: { in: CASH_PENDING_TYPES } } },
+      include: { paymentMethod: true },
+      orderBy: { date: 'asc' },
+    }),
+    getCardInvoices(todayKey),
+  ]);
+
+  const accountBalance = round2(position?.accountBalance ?? 0);
+
+  // Saldo sacável do Flash (e de qualquer cartão ligado a uma receita
+  // fixa): já é líquido da taxa de saque em 1x — ver getPeriodData.
+  const flashCards = data.linkedCardDetails;
+  const flashNet = round2(sum(flashCards, 'netWithdrawable'));
+
+  const separateItems = unpaidRows.map((e) => ({
+    id: e.id,
+    description: e.description,
+    amount: e.amount,
+    date: e.date,
+    paymentMethod: { id: e.paymentMethod.id, name: e.paymentMethod.name },
+  }));
+  const separateTotal = round2(sum(separateItems, 'amount'));
+
+  // Só entra o que AINDA vai cair (data depois de agora) — o que já caiu
+  // está dentro do saldo em conta que você informou. Receita ligada a
+  // cartão (Flash) fica de fora porque já entra como saldo sacável acima.
+  const linkedTypes = new Set(flashCards.map((c) => c.incomeType));
+  const upcomingIncomes = data.incomes
+    .filter((i) => new Date(i.date) > now && !linkedTypes.has(i.type))
+    .map((i) => ({
+      id: i.id,
+      description: i.description,
+      date: i.date,
+      amount: i.amount,
+      person: i.person ? { id: i.person.id, name: i.person.name } : null,
+    }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const upcomingIncomesTotal = round2(sum(upcomingIncomes, 'amount'));
+
+  // O que os outros ainda vão te mandar (Pix/Flash do período). Os
+  // abatimentos já recebidos são de dívidas de cartão, não desses Pix/Flash,
+  // então NÃO descontam daqui.
+  const people = data.owedByPerson.map((p) => {
+    const owed = round2(p.total);
+    const items = data.expenses
+      .filter((e) => e.person?.id === p.id && ['PIX', 'VOUCHER'].includes(e.paymentMethod?.type))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(toItem);
+    return { id: p.id, name: p.name, icon: p.icon, color: p.color, owed, pending: owed, items };
+  });
+  const othersPending = round2(sum(people, 'pending'));
+
+  // Sai: só a SUA parte de cada fatura de cartão de crédito (a parte dos
+  // outros nos cartões não entra na sua conta — mesma regra do Painel).
+  const cards = cardInvoices
+    .filter((c) => c.paymentMethod.type === 'CREDIT_CARD')
+    .map((c) => {
+      const own = round2(c.byPerson.find((b) => b.person.isSelf)?.spent ?? 0);
+      return {
+        id: c.paymentMethod.id,
+        name: c.paymentMethod.name,
+        dueDate: c.nextDueDate,
+        own,
+        invoiceTotal: c.openInvoiceTotal,
+        items: (c.byPerson.find((b) => b.person.isSelf)?.items ?? [])
+          .slice()
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .map((i) => ({ ...i, paymentMethod: c.paymentMethod.name })),
+      };
+    })
+    .filter((c) => c.invoiceTotal > 0)
+    .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  // Gasto "de cartão" seu que não está em nenhuma fatura de cartão de
+  // crédito (ex: "Não especificado") — ainda conta como saída.
+  const cardsOther = Math.max(round2(data.selfExpensesCard - sum(cards, 'own')), 0);
+  const creditIds = new Set(cardInvoices.filter((c) => c.paymentMethod.type === 'CREDIT_CARD').map((c) => c.paymentMethod.id));
+  const otherItems = data.expenses
+    .filter((e) => e.person?.isSelf && !IMMEDIATE_TYPES.includes(e.paymentMethod?.type) && !creditIds.has(e.paymentMethodId))
+    .map(toItem);
+  const outgoingTotal = round2(data.selfExpensesCard);
+
+  const readyNow = round2(accountBalance + flashNet);
+  const freeAfterSeparating = round2(readyNow - separateTotal);
+  const finalWithOthers = round2(freeAfterSeparating + upcomingIncomesTotal + othersPending - outgoingTotal);
+  const finalWithoutOthers = round2(finalWithOthers - othersPending);
+
+  const withdrawal = finalWithOthers < 0 ? await buildWithdrawalAdvice(round2(-finalWithOthers), todayKey) : null;
+
+  return {
+    now,
+    period: { label: todayKey, start: data.start, end: new Date(data.end.getTime() - 1) },
+    account: { balance: accountBalance, updatedAt: position?.updatedAt ?? null },
+    flash: { cards: flashCards, netWithdrawable: flashNet },
+    separate: { items: separateItems, total: separateTotal },
+    incoming: {
+      incomes: upcomingIncomes,
+      incomesTotal: upcomingIncomesTotal,
+      others: { people, pending: othersPending, owed: round2(sum(people, 'owed')) },
+    },
+    outgoing: { cards, other: cardsOther, otherItems, total: outgoingTotal },
+    result: { readyNow, freeAfterSeparating, finalWithOthers, finalWithoutOthers },
+    withdrawal,
+  };
+}
+
+module.exports = { getCashOverview };

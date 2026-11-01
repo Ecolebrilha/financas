@@ -6,6 +6,7 @@ const { getOpenInstallmentGroups } = require('../utils/installments');
 const { getCardInvoices } = require('../utils/cards');
 const { billingDateWhere } = require('../utils/billing');
 const { getPeriodData, buildWithdrawalAdvice } = require('../utils/periodData');
+const { getCashOverview } = require('../utils/cashFlow');
 
 const router = express.Router();
 
@@ -47,17 +48,35 @@ router.get('/', async (req, res) => {
 
   const isFuture = monthParam > todayKey;
 
-  // Pra período futuro, simula o saldo acumulado: soma o saldo (receita -
-  // seus gastos) de cada período entre hoje e o período pedido, incluindo
-  // despesas fixas e parcelas já lançadas nesse meio-tempo (a "dívida" ou
-  // sobra que carrega de um período pro outro).
+  // Pra período futuro, o que passa de um mês pro outro não é o saldo por
+  // competência: a dívida do mês anterior você sempre paga, então só pesa
+  // no mês seguinte o repasse do saque no limite do cartão (opção
+  // recomendada) que cobriu a falta. O ponto de partida é a falta REAL da
+  // tela Caixa (dinheiro em conta + Flash), não o saldo por competência.
   let carryOver = 0;
   if (isFuture) {
-    let cursor = todayKey;
+    const dues = new Map();
+    const schedule = (advice, fromKey) => {
+      const { total, perInstallment, installments } = advice.options[advice.recommended];
+      for (let n = 1; n <= installments; n += 1) {
+        const key = shiftMonthKey(fromKey, n);
+        dues.set(key, round2((dues.get(key) || 0) + (installments === 1 ? total : perInstallment)));
+      }
+    };
+    const cash = await getCashOverview();
+    if (cash.withdrawal) schedule(cash.withdrawal, todayKey);
+
+    let cursor = shiftMonthKey(todayKey, 1);
     let guard = 0;
-    while (cursor !== monthParam && guard < 36) {
+    while (cursor <= monthParam && guard < 36) {
+      const due = dues.get(cursor) || 0;
+      if (cursor === monthParam) {
+        carryOver = round2(-due);
+        break;
+      }
       const cursorData = await getPeriodData(cursor);
-      carryOver = round2(carryOver + cursorData.balance);
+      const after = round2(cursorData.balance - due);
+      if (after < 0) schedule(await buildWithdrawalAdvice(round2(-after), cursor), cursor);
       cursor = shiftMonthKey(cursor, 1);
       guard += 1;
     }
