@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { TextField, NumberField, DateField, MonthField, TextAreaField, SelectField, SegmentedControl, PrimaryButton } from '../components/fields';
 import PersonPicker from '../components/PersonPicker';
 import { toInputDate, formatCurrency } from '../lib/format';
+import { STATUS } from '../lib/colors';
 
 const TIPOS = [
   { value: 'unico', label: 'Único' },
@@ -59,6 +60,7 @@ export default function QuickAddExpense() {
   const [submitting, setSubmitting] = useState(false);
   const [showBillingOverride, setShowBillingOverride] = useState(false);
   const [splitPeopleIds, setSplitPeopleIds] = useState([]);
+  const [splitAmounts, setSplitAmounts] = useState({});
   const [pendingByPerson, setPendingByPerson] = useState(new Map());
   const [loadingPending, setLoadingPending] = useState(false);
 
@@ -87,6 +89,26 @@ export default function QuickAddExpense() {
       .finally(() => setLoadingPending(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipo]);
+
+  // Recalcula o rateio automático sempre que muda quem tá selecionado, o
+  // valor total ou chega o "quem deve menos" — cada pessoa continua
+  // editável depois disso, individualmente (ver handleSplitAmountChange).
+  useEffect(() => {
+    if (tipo !== 'dividida') return;
+    const selected = activePeople.filter((p) => splitPeopleIds.includes(p.id));
+    const computed = splitAmount(Number(form.amount) || 0, selected, pendingByPerson);
+    const next = {};
+    for (const s of computed) next[s.person.id] = String(s.amount);
+    setSplitAmounts(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipo, splitPeopleIds, form.amount, pendingByPerson]);
+
+  function handleSplitAmountChange(personId, value) {
+    setSplitAmounts((prev) => ({ ...prev, [personId]: value }));
+  }
+
+  const splitSum = round2(splitPeopleIds.reduce((s, id) => s + (Number(splitAmounts[id]) || 0), 0));
+  const splitMatches = Math.abs(splitSum - Number(form.amount || 0)) <= 0.009;
 
   const set = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -117,6 +139,17 @@ export default function QuickAddExpense() {
         showToast('Selecione pelo menos 2 pessoas pra dividir.', 'error');
         return;
       }
+      if (splitPeopleIds.some((id) => !Number(splitAmounts[id]) || Number(splitAmounts[id]) <= 0)) {
+        showToast('Todo mundo precisa de um valor maior que zero.', 'error');
+        return;
+      }
+      if (Math.abs(splitSum - Number(form.amount)) > 0.009) {
+        showToast(
+          `A soma da divisão (${formatCurrency(splitSum)}) não bate com o valor total (${formatCurrency(Number(form.amount))}).`,
+          'error',
+        );
+        return;
+      }
     } else if (!form.personId) {
       showToast('Preencha descrição, valor, pessoa, método e categoria.', 'error');
       return;
@@ -125,14 +158,13 @@ export default function QuickAddExpense() {
     try {
       if (tipo === 'dividida') {
         const splitPeople = activePeople.filter((p) => splitPeopleIds.includes(p.id));
-        const splits = splitAmount(Number(form.amount), splitPeople, pendingByPerson);
         await Promise.all(
-          splits.map((s) =>
+          splitPeople.map((p) =>
             api.expenses.create({
               description: form.description.trim(),
-              amount: s.amount,
+              amount: round2(Number(splitAmounts[p.id])),
               date: form.date,
-              personId: s.person.id,
+              personId: p.id,
               paymentMethodId: form.paymentMethodId,
               categoryId: form.categoryId,
               notes: form.notes || undefined,
@@ -140,7 +172,7 @@ export default function QuickAddExpense() {
             }),
           ),
         );
-        showToast(`Gasto dividido entre ${splits.length} pessoas!`);
+        showToast(`Gasto dividido entre ${splitPeople.length} pessoas!`);
       } else if (tipo === 'fixo') {
         const dayOfMonth = Number(form.date.split('-')[2]);
         await api.recurring.create({
@@ -185,6 +217,7 @@ export default function QuickAddExpense() {
       }));
       setShowBillingOverride(false);
       setSplitPeopleIds([]);
+      setSplitAmounts({});
     } catch (err) {
       showToast(err.message, 'error');
     } finally {
@@ -228,23 +261,42 @@ export default function QuickAddExpense() {
           <PersonPicker people={activePeople} value={form.personId} onChange={(id) => setForm((f) => ({ ...f, personId: id }))} />
         )}
 
-        {tipo === 'dividida' && splitPeopleIds.length >= 2 && form.amount > 0 && (
-          <div className="rounded-xl bg-black/5 dark:bg-white/10 p-3 text-sm space-y-1">
+        {tipo === 'dividida' && splitPeopleIds.length >= 2 && (
+          <div className="rounded-xl bg-black/5 dark:bg-white/10 p-3 text-sm space-y-2">
             {loadingPending ? (
               <p className="text-xs text-muted">Calculando rateio…</p>
             ) : (
-              splitAmount(
-                Number(form.amount),
-                activePeople.filter((p) => splitPeopleIds.includes(p.id)),
-                pendingByPerson,
-              ).map((s) => (
-                <div key={s.person.id} className="flex items-center justify-between">
+              <>
+                <p className="text-xs text-muted -mt-0.5">Rateio automático, igual pra todos — edite se quiser dividir diferente.</p>
+                {activePeople
+                  .filter((p) => splitPeopleIds.includes(p.id))
+                  .map((p) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <span className="flex-1 truncate">
+                        {p.icon || '👤'} {p.name}
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={splitAmounts[p.id] ?? ''}
+                        onChange={(ev) => handleSplitAmountChange(p.id, ev.target.value)}
+                        className="w-24 rounded-lg border border-black/10 dark:border-white/15 bg-white dark:bg-white/5 px-2 py-1.5 text-sm text-right outline-none focus:ring-2 focus:ring-blue-400 dark:text-white"
+                      />
+                    </div>
+                  ))}
+                <div
+                  className="flex items-center justify-between pt-2 border-t border-black/10 dark:border-white/15 text-xs font-semibold"
+                  style={{ color: splitMatches ? STATUS.good : STATUS.critical }}
+                >
+                  <span>{splitMatches ? 'Soma bate com o valor total' : 'Soma não bate com o valor total'}</span>
                   <span>
-                    {s.person.icon || '👤'} {s.person.name}
+                    {formatCurrency(splitSum)}
+                    {!splitMatches && ` (dif. ${formatCurrency(splitSum - Number(form.amount || 0))})`}
                   </span>
-                  <span className="font-semibold tabular-nums">{formatCurrency(s.amount)}</span>
                 </div>
-              ))
+              </>
             )}
           </div>
         )}
