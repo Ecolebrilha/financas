@@ -24,12 +24,15 @@ export default function MonthOverview({
   expensesCard,
   householdExpenses,
   income,
+  incomeRegular,
+  incomeFromOthers,
   balance,
   isFuture,
   projectedBalance,
   carryOver,
   incomesList,
   expensesList,
+  owedByPerson,
 }) {
   const [showDetail, setShowDetail] = useState(false);
   const headline = isFuture ? projectedBalance : balance;
@@ -87,6 +90,12 @@ export default function MonthOverview({
           <span>cartão a vencer {formatCurrency(expensesCard)}</span>
         </div>
       )}
+      {incomeRegular != null && incomeFromOthers != null && incomeFromOthers > 0 && (
+        <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
+          <span>salário/fixa {formatCurrency(incomeRegular)}</span>
+          <span>a receber de outros {formatCurrency(incomeFromOthers)}</span>
+        </div>
+      )}
       {isNegative && (
         <p className="text-xs mt-2" style={{ color: STATUS.critical }}>
           {isFuture
@@ -113,7 +122,8 @@ export default function MonthOverview({
           onClose={() => setShowDetail(false)}
           incomes={incomesList}
           expenses={expensesList}
-          totals={{ income, expenses, expensesImmediate, expensesCard, balance }}
+          owedByPerson={owedByPerson}
+          totals={{ income, incomeRegular, incomeFromOthers, expenses, expensesImmediate, expensesCard, balance }}
         />
       )}
     </div>

@@ -21,6 +21,28 @@ function Section({ title, color, total, children }) {
   );
 }
 
+// Mesma ideia de SubList, mas pra totais por pessoa (sem data) — usado
+// no "a receber de outras pessoas": cada pessoa conta pelo total gasto
+// dela no período, não item por item (lista ficaria enorme).
+function PersonTotalsList({ label, items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="mb-2">
+      {label && <p className="text-xs font-medium text-muted mb-1">{label}</p>}
+      <ul className="divide-y divide-black/5 dark:divide-white/10">
+        {items.map((p) => (
+          <li key={p.id} className="py-1.5 flex items-center justify-between gap-3">
+            <span className="text-sm truncate">
+              {p.icon || '👤'} {p.name}
+            </span>
+            <span className="text-sm font-medium tabular-nums shrink-0">{formatCurrency(p.total)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function SubList({ label, items, renderExtra }) {
   if (items.length === 0) return null;
   return (
@@ -45,11 +67,14 @@ function SubList({ label, items, renderExtra }) {
 }
 
 // Detalha item a item exatamente o que entra em cada número do "Seu
-// saldo do mês": de onde vem a receita (só o que entra de fora mesmo —
-// abatimento de outras pessoas não conta aqui, é só desconto do que
-// elas devem, ver PersonBreakdown) e o que são os SEUS gastos (o que já
-// saiu do bolso vs. a dívida de cartão que ainda vai vencer).
-export default function BalanceDetailModal({ onClose, incomes, expenses, totals }) {
+// saldo do mês": de onde vem a receita (o que entra de fora, tipo
+// salário/Flash, MAIS tudo que as outras pessoas gastaram no período —
+// elas vão te devolver esse valor de qualquer jeito, então conta como
+// receita já na hora que o gasto delas é lançado, não só quando pagam;
+// um abatimento já recebido não soma de novo, só abate o "pendente" em
+// Gasto por pessoa) e o que são os SEUS gastos (o que já saiu do bolso
+// vs. a dívida de cartão que ainda vai vencer).
+export default function BalanceDetailModal({ onClose, incomes, expenses, owedByPerson, totals }) {
   const selfExpenses = expenses.filter((e) => e.person?.isSelf);
   const immediate = selfExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type));
   const card = selfExpenses.filter((e) => !IMMEDIATE_TYPES.includes(e.paymentMethod?.type));
@@ -57,7 +82,12 @@ export default function BalanceDetailModal({ onClose, incomes, expenses, totals 
   return (
     <Modal title="De onde vem esse número" onClose={onClose}>
       <Section title="Receita" color={STATUS.good} total={totals.income}>
-        <SubList items={incomes} renderExtra={(i) => INCOME_TYPE_LABELS[i.type] || i.type} />
+        <SubList
+          label={`Fixa/avulsa — ${formatCurrency(totals.incomeRegular)}`}
+          items={incomes}
+          renderExtra={(i) => INCOME_TYPE_LABELS[i.type] || i.type}
+        />
+        <PersonTotalsList label={`A receber de outras pessoas — ${formatCurrency(totals.incomeFromOthers)}`} items={owedByPerson} />
       </Section>
 
       <Section title="Seus gastos" color={STATUS.critical} total={totals.expenses}>

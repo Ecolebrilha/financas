@@ -101,10 +101,18 @@ async function getPeriodData(monthParam) {
     sum(selfPeriodExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type)), 'amount'),
   );
   const selfExpensesCard = round2(selfExpenses - selfExpensesImmediate);
-  // Abatimento (Payment) não é receita — é só o abatimento do total que
-  // a pessoa deve (ver "Gasto por pessoa"/PersonBreakdown). Receita aqui
-  // é só o que entra de fora mesmo (salário, Flash etc).
-  const income = round2(sum(incomes, 'amount'));
+  // Receita não é só o que entra "de fora" (salário, Flash etc) — tudo
+  // que as outras pessoas gastaram (Pix, Flash, cartão, o que for) também
+  // conta, porque elas vão te devolver esse valor de qualquer jeito (ver
+  // "Gasto por pessoa"). Isso é o TOTAL gasto delas, não só o que falta —
+  // um abatimento (Payment) já recebido não soma de novo aqui, ele só
+  // abate o "pendente" mostrado em Gasto por pessoa; a dívida inteira já
+  // está contada na hora que o gasto dela é lançado, não quando ela paga.
+  const incomeRegular = round2(sum(incomes, 'amount'));
+  const otherPeopleExpenses = expenses.filter((e) => !e.person?.isSelf);
+  const incomeFromOthers = round2(sum(otherPeopleExpenses, 'amount'));
+  const owedByPerson = groupSumByEntity(otherPeopleExpenses, (e) => e.person, (e) => e.amount);
+  const income = round2(incomeRegular + incomeFromOthers);
 
   return {
     start,
@@ -116,6 +124,9 @@ async function getPeriodData(monthParam) {
     selfExpenses,
     selfExpensesImmediate,
     selfExpensesCard,
+    incomeRegular,
+    incomeFromOthers,
+    owedByPerson,
     income,
     balance: round2(income - selfExpenses),
   };
@@ -202,6 +213,8 @@ router.get('/', async (req, res) => {
       expensesCard: data.selfExpensesCard,
       householdExpenses: data.householdExpenses,
       income: data.income,
+      incomeRegular: data.incomeRegular,
+      incomeFromOthers: data.incomeFromOthers,
       balance: data.balance,
       isFuture,
       projectedBalance: isFuture ? projectedBalance : data.balance,
@@ -211,6 +224,7 @@ router.get('/', async (req, res) => {
     incomes: data.incomes,
     payments: data.payments,
     byPerson: groupSumByEntity(data.expenses, (e) => e.person, (e) => e.amount),
+    owedByPerson: data.owedByPerson,
     byPaymentMethod: groupSumByEntity(data.expenses, (e) => e.paymentMethod, (e) => e.amount),
     byCategory: groupSumByEntity(data.expenses, (e) => e.category, (e) => e.amount),
     incomeByType: groupSumByKey(data.incomes, (i) => i.type, (i) => i.amount),

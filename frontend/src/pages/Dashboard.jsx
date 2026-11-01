@@ -157,12 +157,15 @@ export default function Dashboard() {
               expensesCard={summary.totals.expensesCard}
               householdExpenses={summary.totals.householdExpenses}
               income={summary.totals.income}
+              incomeRegular={summary.totals.incomeRegular}
+              incomeFromOthers={summary.totals.incomeFromOthers}
               balance={summary.totals.balance}
               isFuture={summary.totals.isFuture}
               projectedBalance={summary.totals.projectedBalance}
               carryOver={summary.totals.carryOver}
               incomesList={summary.incomes}
               expensesList={summary.expenses}
+              owedByPerson={summary.owedByPerson}
             />
             <CardWithdrawalAdvice data={summary.cardWithdrawal} />
           </Card>
