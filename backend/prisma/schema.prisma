@@ -75,6 +75,12 @@ model PaymentMethod {
   // anterior somada na receita). creditLimit vira só o valor de
   // referência/fallback caso ainda não tenha receita lançada no período.
   creditLimitIncomeType String?
+  // Valor fixo mensal (ex: anuidade diferenciada) que já vem embutido
+  // nos lançamentos normais deste cartão (ex: dividido dentro do valor
+  // de uma parcela), mas que você não quer contando no limite usado —
+  // subtraído uma vez pra cada período (atual + futuros) que entrar na
+  // conta de getUsedCreditLimits, não dos lançamentos em si.
+  limitMonthlyDeduction Float?
   color      String?
   // Alguns cartões de loja (ex: Renner) não têm um dia de fechamento
   // fixo pra todo mundo — cada compra vence exatamente 1 mês depois,

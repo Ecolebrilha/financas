@@ -134,6 +134,18 @@ function filterFutureEntries(entries) {
   return entries.filter(({ expense: e }) => isRealInstallment(e) || !e.recurringTemplateId);
 }
 
+// Alguns cartões têm um valor fixo mensal (ex: anuidade diferenciada) já
+// embutido dentro do valor normal de outros lançamentos (dividido junto
+// numa parcela, por exemplo) em vez de ser um lançamento à parte — pra
+// não contar esse pedaço no limite, desconta limitMonthlyDeduction do
+// cartão uma vez pra cada período (fatura atual + futuras) que estiver
+// entrando na conta, já que o valor embutido se repete em cada um deles.
+function deductionFor(card, countedEntries) {
+  if (!card.limitMonthlyDeduction) return 0;
+  const periods = new Set(countedEntries.map(({ periodLabel }) => periodLabel));
+  return round2(card.limitMonthlyDeduction * periods.size);
+}
+
 // Quanto do limite de cada cartão está ocupado AGORA, calculado a partir
 // dos próprios lançamentos em vez de mantido manualmente: soma a fatura
 // do período atual (ainda em aberto, nem venceu) inteira, mais o que já
@@ -159,7 +171,8 @@ async function getUsedCreditLimits(cards) {
       .map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }));
     const current = own.filter(({ periodLabel }) => periodLabel === today);
     const future = filterFutureEntries(own.filter(({ periodLabel }) => periodLabel > today));
-    const total = [...current, ...future].reduce((s, { expense: e }) => s + e.amount, 0);
+    const counted = [...current, ...future];
+    const total = counted.reduce((s, { expense: e }) => s + e.amount, 0) - deductionFor(card, counted);
     used.set(id, round2(total));
   }
   return used;
@@ -181,8 +194,10 @@ async function getUsedLimitDetail(cardId) {
   const entries = expenses.map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }));
   const current = entries.filter(({ periodLabel }) => periodLabel === today);
   const future = filterFutureEntries(entries.filter(({ periodLabel }) => periodLabel > today));
+  const counted = [...current, ...future];
+  const deduction = deductionFor(card, counted);
 
-  const items = [...current, ...future]
+  const items = counted
     .map(({ expense: e, periodLabel }) => ({
       id: e.id,
       description: e.description,
@@ -206,7 +221,8 @@ async function getUsedLimitDetail(cardId) {
   return {
     paymentMethod: card,
     items,
-    total: round2(items.reduce((s, i) => s + i.amount, 0)),
+    deduction,
+    total: round2(items.reduce((s, i) => s + i.amount, 0) - deduction),
   };
 }
 

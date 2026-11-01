@@ -155,9 +155,17 @@ export default function CreditLimitDetailModal({ paymentMethodId, onClose, onCha
               );
             })
           )}
-          <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/10 flex items-center justify-between">
-            <span className="text-sm font-semibold">Total usado</span>
-            <span className="text-base font-bold tabular-nums">{formatCurrency(detail.total)}</span>
+          <div className="pt-2 mt-2 border-t border-black/5 dark:border-white/10 space-y-1">
+            {detail.deduction > 0 && (
+              <div className="flex items-center justify-between text-xs text-muted">
+                <span>já desconta {formatCurrency(detail.deduction)}/mês embutido nos lançamentos acima (ver Mais → Cartões)</span>
+                <span>-{formatCurrency(detail.deduction)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Total usado</span>
+              <span className="text-base font-bold tabular-nums">{formatCurrency(detail.total)}</span>
+            </div>
           </div>
         </>
       )}

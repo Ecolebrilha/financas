@@ -96,6 +96,12 @@ export default function Config() {
                 options: INCOME_TYPE_OPTIONS,
                 emptyLabel: 'Não — usar o limite máximo fixo acima',
               },
+              {
+                key: 'limitMonthlyDeduction',
+                label: 'Valor fixo mensal já embutido em outros lançamentos, pra não contar no limite (ex: anuidade dividida numa parcela)',
+                type: 'number',
+                min: 0,
+              },
               { key: 'color', label: 'Cor', type: 'color' },
             ]}
             describe={(item) => {
@@ -108,6 +114,7 @@ export default function Config() {
                 text += ` · disponível ${formatCurrency(available)} de ${formatCurrency(limit)}`;
                 if (item.creditLimitIncomeType) text += ` (${INCOME_TYPE_LABELS[item.creditLimitIncomeType]})`;
               }
+              if (item.limitMonthlyDeduction) text += ` · desconta ${formatCurrency(item.limitMonthlyDeduction)}/mês do limite usado`;
               return text;
             }}
           />

@@ -53,6 +53,7 @@ router.use(
       'sortOrder',
       'creditLimit',
       'creditLimitIncomeType',
+      'limitMonthlyDeduction',
       'dueDateFollowsPurchase',
     ],
     requiredFields: ['name', 'type'],
@@ -72,6 +73,13 @@ router.use(
         if (!INCOME_TYPES.includes(body.creditLimitIncomeType)) {
           return `creditLimitIncomeType deve ser um de: ${INCOME_TYPES.join(', ')}`;
         }
+      }
+      if (
+        body.limitMonthlyDeduction !== undefined &&
+        body.limitMonthlyDeduction !== null &&
+        !Number.isFinite(Number(body.limitMonthlyDeduction))
+      ) {
+        return 'limitMonthlyDeduction deve ser um número';
       }
       return null;
     },
