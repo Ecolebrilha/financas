@@ -52,11 +52,13 @@ async function getCardInvoices(monthParam) {
     // Cartões com vencimento fixo (a maioria): o "vence" do período é
     // sempre o mesmo dia pra todo mundo. Cartões com
     // dueDateFollowsPurchase (ex: Renner) não têm esse corte único —
-    // cada compra vence num dia diferente, então mostra a data mais
-    // tardia entre as compras do período (o prazo final daquele "lote").
+    // cada compra vence num dia diferente, então mostra a MAIS PRÓXIMA
+    // entre as compras do período (a mais urgente: é a que precisa ser
+    // paga primeiro, então é ela quem deve guiar o alarme/contagem de
+    // dias, não a última do lote).
     const due = card.dueDateFollowsPurchase
       ? matching.length > 0
-        ? new Date(Math.max(...matching.map((e) => effectiveDate(e).getTime())))
+        ? new Date(Math.min(...matching.map((e) => effectiveDate(e).getTime())))
         : dueDateForPeriodLabel(monthParam, dueDay)
       : dueDateForPeriodLabel(monthParam, dueDay);
 
