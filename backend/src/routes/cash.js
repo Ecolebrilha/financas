@@ -10,6 +10,20 @@ const router = express.Router();
 // Só Pix/Débito faz sentido "ainda não paguei" — cartão já vira fatura (e
 // entra em "vai sair") e Flash já saiu do saldo dele na hora.
 const CASH_PENDING_TYPES = ['PIX', 'DEBIT_CARD'];
+const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD', 'VOUCHER'];
+
+// Forma enxuta de um lançamento pra mostrar nos detalhes da tela.
+function toItem(e) {
+  return {
+    id: e.id,
+    description: e.description,
+    amount: e.amount,
+    date: e.date,
+    installmentNumber: e.installmentNumber,
+    installmentTotal: e.installmentTotal,
+    paymentMethod: e.paymentMethod?.name ?? null,
+  };
+}
 
 // Tela Caixa: em vez do saldo do mês por competência (Painel), mostra o
 // DINHEIRO de verdade — quanto tem agora (conta informada por você +
@@ -68,7 +82,11 @@ router.get('/', async (req, res) => {
   // então NÃO descontam daqui.
   const people = data.owedByPerson.map((p) => {
     const owed = round2(p.total);
-    return { id: p.id, name: p.name, icon: p.icon, color: p.color, owed, pending: owed };
+    const items = data.expenses
+      .filter((e) => e.person?.id === p.id && ['PIX', 'VOUCHER'].includes(e.paymentMethod?.type))
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .map(toItem);
+    return { id: p.id, name: p.name, icon: p.icon, color: p.color, owed, pending: owed, items };
   });
   const othersPending = round2(sum(people, 'pending'));
 
@@ -84,6 +102,10 @@ router.get('/', async (req, res) => {
         dueDate: c.nextDueDate,
         own,
         invoiceTotal: c.openInvoiceTotal,
+        items: (c.byPerson.find((b) => b.person.isSelf)?.items ?? [])
+          .slice()
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .map((i) => ({ ...i, paymentMethod: c.paymentMethod.name })),
       };
     })
     .filter((c) => c.invoiceTotal > 0)
@@ -91,6 +113,10 @@ router.get('/', async (req, res) => {
   // Gasto "de cartão" seu que não está em nenhuma fatura de cartão de
   // crédito (ex: "Não especificado") — ainda conta como saída.
   const cardsOther = Math.max(round2(data.selfExpensesCard - sum(cards, 'own')), 0);
+  const creditIds = new Set(cardInvoices.filter((c) => c.paymentMethod.type === 'CREDIT_CARD').map((c) => c.paymentMethod.id));
+  const otherItems = data.expenses
+    .filter((e) => e.person?.isSelf && !IMMEDIATE_TYPES.includes(e.paymentMethod?.type) && !creditIds.has(e.paymentMethodId))
+    .map(toItem);
   const outgoingTotal = round2(data.selfExpensesCard);
 
   const readyNow = round2(accountBalance + flashNet);
@@ -111,7 +137,7 @@ router.get('/', async (req, res) => {
       incomesTotal: upcomingIncomesTotal,
       others: { people, pending: othersPending, owed: round2(sum(people, 'owed')) },
     },
-    outgoing: { cards, other: cardsOther, total: outgoingTotal },
+    outgoing: { cards, other: cardsOther, otherItems, total: outgoingTotal },
     result: { readyNow, freeAfterSeparating, finalWithOthers, finalWithoutOthers },
     withdrawal,
   });
