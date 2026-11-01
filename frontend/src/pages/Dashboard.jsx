@@ -163,7 +163,6 @@ export default function Dashboard() {
               projectedBalance={summary.totals.projectedBalance}
               carryOver={summary.totals.carryOver}
               incomesList={summary.incomes}
-              paymentsList={summary.payments}
               expensesList={summary.expenses}
             />
             <CardWithdrawalAdvice data={summary.cardWithdrawal} />

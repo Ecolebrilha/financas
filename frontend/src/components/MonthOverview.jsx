@@ -24,20 +24,17 @@ export default function MonthOverview({
   expensesCard,
   householdExpenses,
   income,
-  incomeRegular,
-  incomePayments,
   balance,
   isFuture,
   projectedBalance,
   carryOver,
   incomesList,
-  paymentsList,
   expensesList,
 }) {
   const [showDetail, setShowDetail] = useState(false);
   const headline = isFuture ? projectedBalance : balance;
   const isNegative = headline < 0;
-  const canShowDetail = incomesList != null && paymentsList != null && expensesList != null;
+  const canShowDetail = incomesList != null && expensesList != null;
 
   let fillWidth;
   let color;
@@ -90,12 +87,6 @@ export default function MonthOverview({
           <span>cartão a vencer {formatCurrency(expensesCard)}</span>
         </div>
       )}
-      {incomeRegular != null && incomePayments != null && incomePayments > 0 && (
-        <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
-          <span>fixa/avulsa {formatCurrency(incomeRegular)}</span>
-          <span>abatimentos recebidos {formatCurrency(incomePayments)}</span>
-        </div>
-      )}
       {isNegative && (
         <p className="text-xs mt-2" style={{ color: STATUS.critical }}>
           {isFuture
@@ -121,9 +112,8 @@ export default function MonthOverview({
         <BalanceDetailModal
           onClose={() => setShowDetail(false)}
           incomes={incomesList}
-          payments={paymentsList}
           expenses={expensesList}
-          totals={{ income, incomeRegular, incomePayments, expenses, expensesImmediate, expensesCard, balance }}
+          totals={{ income, expenses, expensesImmediate, expensesCard, balance }}
         />
       )}
     </div>

@@ -1,9 +1,38 @@
 const express = require('express');
 const prisma = require('../db');
 const { materializeRecurringForMonth } = require('../utils/recurring');
+const { startOfMonth, clampDay } = require('../utils/dates');
 
 const router = express.Router();
 const INCLUDE = { person: true, paymentMethod: true, category: true };
+
+// Materializar é idempotente (não sobrescreve o que já existe), então
+// editar o template sozinho não muda o lançamento deste mês que já foi
+// gerado antes da edição — sincroniza esse(s) lançamento(s) (deste mês
+// em diante; meses passados ficam como histórico, sem reescrever) pra
+// refletir o template na hora.
+async function syncMaterializedFromTemplate(template) {
+  const now = new Date();
+  const monthStart = startOfMonth(now.getUTCFullYear(), now.getUTCMonth());
+  const rows = await prisma.expense.findMany({ where: { recurringTemplateId: template.id, date: { gte: monthStart } } });
+  for (const row of rows) {
+    const year = row.date.getUTCFullYear();
+    const monthIndex = row.date.getUTCMonth();
+    const day = clampDay(year, monthIndex, template.dayOfMonth || 1);
+    await prisma.expense.update({
+      where: { id: row.id },
+      data: {
+        description: template.description,
+        amount: template.amount,
+        personId: template.personId,
+        paymentMethodId: template.paymentMethodId,
+        categoryId: template.categoryId,
+        notes: template.notes,
+        date: new Date(Date.UTC(year, monthIndex, day)),
+      },
+    });
+  }
+}
 
 router.get('/', async (req, res) => {
   const where = req.query.includeInactive === 'true' ? {} : { active: true };
@@ -50,6 +79,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const item = await prisma.recurringExpense.update({ where: { id: req.params.id }, data, include: INCLUDE });
+    await syncMaterializedFromTemplate(item);
     res.json(item);
   } catch (e) {
     res.status(404).json({ error: 'Gasto recorrente não encontrado' });
@@ -59,6 +89,12 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const item = await prisma.recurringExpense.update({ where: { id: req.params.id }, data: { active: false } });
+    // "Pausar" tira o lançamento de vista a partir de agora — não só
+    // impede meses futuros ainda não gerados, também remove o deste mês
+    // que já tinha sido materializado antes de pausar.
+    const now = new Date();
+    const monthStart = startOfMonth(now.getUTCFullYear(), now.getUTCMonth());
+    await prisma.expense.deleteMany({ where: { recurringTemplateId: item.id, date: { gte: monthStart } } });
     res.json(item);
   } catch (e) {
     res.status(404).json({ error: 'Gasto recorrente não encontrado' });

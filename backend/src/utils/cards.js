@@ -103,14 +103,25 @@ async function getCardInvoices(monthParam) {
   return results;
 }
 
+// Uma parcela "de verdade" (compra parcelada) em vez de um lançamento
+// qualquer que por acaso caiu num mês futuro — como um gasto fixo
+// recorrente já materializado com antecedência (ex: assinatura mensal)
+// por causa de navegação no Painel. Só isso realmente "trava" o limite
+// com antecedência; o resto só conta quando a fatura dele abrir de fato.
+function isRealInstallment(e) {
+  return !!e.installmentTotal && e.installmentTotal > 1;
+}
+
 // Quanto do limite de cada cartão está ocupado AGORA, calculado a partir
 // dos próprios lançamentos em vez de mantido manualmente: soma a fatura
-// do período atual (ainda em aberto, nem venceu) com qualquer parcela
-// futura já lançada (parcelamentos em andamento) — isso é o que ainda
-// "pesa" no limite. Não entra fatura já vencida: a premissa do app é que
-// ela já foi paga com a receita do mês, liberando o limite de novo (não
-// usa settledAt pra essa conta — aquele campo é sobre a pessoa ter te
-// pago de volta, não sobre você ter pago o banco).
+// do período atual (ainda em aberto, nem venceu) inteira, mais só as
+// parcelas (de verdade) já lançadas em faturas futuras — gasto fixo ou
+// avulso que por acaso já tenha linha gerada num mês futuro não conta
+// ainda, porque não é compromisso firmado contra o limite hoje, só uma
+// projeção. Não entra fatura já vencida: a premissa do app é que ela já
+// foi paga com a receita do mês, liberando o limite de novo (não usa
+// settledAt pra essa conta — aquele campo é sobre a pessoa ter te pago
+// de volta, não sobre você ter pago o banco).
 async function getUsedCreditLimits(cards) {
   const cardIds = cards.map((c) => c.id);
   if (cardIds.length === 0) return new Map();
@@ -124,7 +135,9 @@ async function getUsedCreditLimits(cards) {
   for (const e of expenses) {
     const card = cardsById.get(e.paymentMethodId);
     const label = periodLabelFor(effectiveDate(e), card);
-    if (label >= today) used.set(e.paymentMethodId, used.get(e.paymentMethodId) + e.amount);
+    if (label === today || (label > today && isRealInstallment(e))) {
+      used.set(e.paymentMethodId, used.get(e.paymentMethodId) + e.amount);
+    }
   }
   for (const [id, total] of used) used.set(id, round2(total));
   return used;
@@ -145,7 +158,7 @@ async function getUsedLimitDetail(cardId) {
 
   const items = expenses
     .map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }))
-    .filter(({ periodLabel }) => periodLabel >= today)
+    .filter(({ expense: e, periodLabel }) => periodLabel === today || (periodLabel > today && isRealInstallment(e)))
     .map(({ expense: e, periodLabel }) => ({
       id: e.id,
       description: e.description,

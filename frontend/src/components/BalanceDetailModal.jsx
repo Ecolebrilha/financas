@@ -25,7 +25,7 @@ function SubList({ label, items, renderExtra }) {
   if (items.length === 0) return null;
   return (
     <div className="mb-2">
-      <p className="text-xs font-medium text-muted mb-1">{label}</p>
+      {label && <p className="text-xs font-medium text-muted mb-1">{label}</p>}
       <ul className="divide-y divide-black/5 dark:divide-white/10">
         {items.map((item) => (
           <li key={item.id} className="py-1.5 flex items-center justify-between gap-3">
@@ -45,10 +45,11 @@ function SubList({ label, items, renderExtra }) {
 }
 
 // Detalha item a item exatamente o que entra em cada número do "Seu
-// saldo do mês": de onde vem a receita (fixa/avulsa + abatimentos que
-// outras pessoas te mandaram) e o que são os SEUS gastos (o que já saiu
-// do bolso vs. a dívida de cartão que ainda vai vencer).
-export default function BalanceDetailModal({ onClose, incomes, payments, expenses, totals }) {
+// saldo do mês": de onde vem a receita (só o que entra de fora mesmo —
+// abatimento de outras pessoas não conta aqui, é só desconto do que
+// elas devem, ver PersonBreakdown) e o que são os SEUS gastos (o que já
+// saiu do bolso vs. a dívida de cartão que ainda vai vencer).
+export default function BalanceDetailModal({ onClose, incomes, expenses, totals }) {
   const selfExpenses = expenses.filter((e) => e.person?.isSelf);
   const immediate = selfExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type));
   const card = selfExpenses.filter((e) => !IMMEDIATE_TYPES.includes(e.paymentMethod?.type));
@@ -56,16 +57,7 @@ export default function BalanceDetailModal({ onClose, incomes, payments, expense
   return (
     <Modal title="De onde vem esse número" onClose={onClose}>
       <Section title="Receita" color={STATUS.good} total={totals.income}>
-        <SubList
-          label={`Fixa/avulsa — ${formatCurrency(totals.incomeRegular)}`}
-          items={incomes}
-          renderExtra={(i) => INCOME_TYPE_LABELS[i.type] || i.type}
-        />
-        <SubList
-          label={`Abatimentos recebidos — ${formatCurrency(totals.incomePayments)}`}
-          items={payments.map((p) => ({ ...p, description: p.notes || 'Abatimento' }))}
-          renderExtra={(p) => p.person?.name}
-        />
+        <SubList items={incomes} renderExtra={(i) => INCOME_TYPE_LABELS[i.type] || i.type} />
       </Section>
 
       <Section title="Seus gastos" color={STATUS.critical} total={totals.expenses}>
