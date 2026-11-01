@@ -1,5 +1,5 @@
 const prisma = require('../db');
-const { dueDateForPeriodLabel, PRIMARY_CYCLE_DAY, periodLabelForDate } = require('./dates');
+const { dueDateForPeriodLabel, PRIMARY_CYCLE_DAY, periodLabelForDate, invoicePeriodForMonthParam } = require('./dates');
 const { round2 } = require('./aggregate');
 const { effectiveDate, periodLabelFor } = require('./billing');
 
@@ -178,4 +178,30 @@ async function getUsedLimitDetail(cardId) {
   };
 }
 
-module.exports = { getCardInvoices, getUsedCreditLimits, getUsedLimitDetail };
+// Pra cartões com creditLimitIncomeType preenchido (ex: Flash/VA-VR
+// ligado à receita fixa "Benefício"), o limite efetivo não é o
+// creditLimit fixo cadastrado — é quanto essa receita realmente
+// depositou no período atual (pode variar mês a mês, ex: sobra do mês
+// anterior somada). Devolve só os cartões que têm essa ligação; quem não
+// tem fica de fora do Map (o chamador usa o creditLimit fixo como
+// fallback).
+async function getDynamicCreditLimits(cards) {
+  const linked = cards.filter((c) => c.creditLimitIncomeType);
+  if (linked.length === 0) return new Map();
+  const today = periodLabelForDate(new Date());
+  const { start, end } = invoicePeriodForMonthParam(today);
+  const types = [...new Set(linked.map((c) => c.creditLimitIncomeType))];
+  const incomes = await prisma.income.findMany({ where: { type: { in: types }, date: { gte: start, lt: end } } });
+
+  const sumByType = new Map();
+  for (const i of incomes) sumByType.set(i.type, (sumByType.get(i.type) || 0) + i.amount);
+
+  const result = new Map();
+  for (const c of linked) {
+    const total = sumByType.get(c.creditLimitIncomeType);
+    if (total !== undefined) result.set(c.id, round2(total));
+  }
+  return result;
+}
+
+module.exports = { getCardInvoices, getUsedCreditLimits, getUsedLimitDetail, getDynamicCreditLimits };

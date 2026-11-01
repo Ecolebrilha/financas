@@ -62,14 +62,19 @@ model PaymentMethod {
   // que a fatura fecha no próprio dia do vencimento (compras após esse dia
   // caem na fatura do mês seguinte).
   closingDay Int?
-  // Controle de limite (cartões de crédito e também o Flash/VA-VR, que na
-  // prática funciona como um "cartão" pra esse fim, só não parcela).
-  // Mantidos manualmente pelo usuário — não são derivados dos gastos
-  // lançados, já que o extrato real do cartão inclui coisas que o app não
-  // rastreia (encargos, parcelas antigas, etc). limite disponível é sempre
-  // creditLimit - usedLimit, calculado na hora de exibir.
+  // Limite máximo — valor fixo, editado manualmente (usedLimit já é
+  // calculado automaticamente a partir dos lançamentos, ver
+  // getUsedCreditLimits). Usado como teto de "quanto cabe nesse cartão".
   creditLimit Float?
   usedLimit   Float?
+  // Quando preenchido (ex: "BENEFIT"), o limite efetivo deste cartão
+  // deixa de ser o creditLimit fixo acima e passa a ser a soma das
+  // Income do período atual com esse type — pra cartões tipo Flash
+  // (VA/VR), cujo "limite" é literalmente quanto a receita fixa daquele
+  // benefício depositou nesse mês (pode variar: ex. sobra do mês
+  // anterior somada na receita). creditLimit vira só o valor de
+  // referência/fallback caso ainda não tenha receita lançada no período.
+  creditLimitIncomeType String?
   color      String?
   // Alguns cartões de loja (ex: Renner) não têm um dia de fechamento
   // fixo pra todo mundo — cada compra vence exatamente 1 mês depois,

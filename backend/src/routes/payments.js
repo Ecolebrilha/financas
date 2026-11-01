@@ -36,6 +36,28 @@ router.post('/', async (req, res) => {
   res.status(201).json(payment);
 });
 
+router.put('/:id', async (req, res) => {
+  const body = req.body;
+  const data = {};
+  if (body.personId !== undefined) data.personId = body.personId;
+  if (body.date !== undefined) data.date = parseDate(body.date);
+  if (body.notes !== undefined) data.notes = body.notes || null;
+  if (body.amount !== undefined) {
+    const value = Number(body.amount);
+    if (!Number.isFinite(value) || value <= 0) {
+      return res.status(400).json({ error: 'amount deve ser um número maior que zero' });
+    }
+    data.amount = value;
+  }
+
+  try {
+    const payment = await prisma.payment.update({ where: { id: req.params.id }, data, include: { person: true } });
+    res.json(payment);
+  } catch (e) {
+    res.status(404).json({ error: 'Abatimento não encontrado' });
+  }
+});
+
 router.delete('/:id', async (req, res) => {
   try {
     await prisma.payment.delete({ where: { id: req.params.id } });

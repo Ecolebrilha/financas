@@ -73,26 +73,15 @@ function defaultPaymentDate(period) {
   return toInputDate(today < start ? start : end);
 }
 
-function PaymentForm({ personId, period, onSaved, onCancel }) {
-  const showToast = useToast();
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(() => defaultPaymentDate(period));
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
+function PaymentForm({ initial, period, onSubmit, onCancel, saving }) {
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : '');
+  const [date, setDate] = useState(() => (initial ? toInputDate(initial.date) : defaultPaymentDate(period)));
+  const [notes, setNotes] = useState(initial?.notes || '');
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     if (!amount) return;
-    setSaving(true);
-    try {
-      await api.payments.create({ personId, amount: Number(amount), date, notes: notes || undefined });
-      showToast('Abatimento registrado!');
-      onSaved();
-    } catch (err) {
-      showToast(err.message, 'error');
-    } finally {
-      setSaving(false);
-    }
+    onSubmit({ amount: Number(amount), date, notes: notes || undefined });
   }
 
   return (
@@ -138,6 +127,8 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [addingPayment, setAddingPayment] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [savingPayment, setSavingPayment] = useState(false);
 
   if (!data || data.length === 0) {
     return <p className="text-sm text-muted py-2">Sem lançamentos neste mês.</p>;
@@ -166,7 +157,36 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
     }
   }
 
+  async function handleCreatePayment(payload) {
+    setSavingPayment(true);
+    try {
+      await api.payments.create({ personId: expandedId, ...payload });
+      showToast('Abatimento registrado!');
+      setAddingPayment(false);
+      onChanged?.();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSavingPayment(false);
+    }
+  }
+
+  async function handleUpdatePayment(payload) {
+    setSavingPayment(true);
+    try {
+      await api.payments.update(editingPayment.id, payload);
+      showToast('Abatimento atualizado!');
+      setEditingPayment(null);
+      onChanged?.();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setSavingPayment(false);
+    }
+  }
+
   async function handleDeletePayment(id) {
+    if (!window.confirm('Apagar esse abatimento?')) return;
     try {
       await api.payments.remove(id);
       showToast('Abatimento removido.');
@@ -279,6 +299,14 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
                   </span>
                   <button
                     type="button"
+                    onClick={() => setEditingPayment(p)}
+                    className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-ink2 dark:text-ink2dk shrink-0"
+                    aria-label="Editar abatimento"
+                  >
+                    <IconEdit width={14} height={14} />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDeletePayment(p.id)}
                     className="p-1.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 text-critical shrink-0"
                     aria-label="Remover abatimento"
@@ -292,13 +320,10 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
 
           {addingPayment ? (
             <PaymentForm
-              personId={expandedId}
               period={period}
-              onSaved={() => {
-                setAddingPayment(false);
-                onChanged?.();
-              }}
+              onSubmit={handleCreatePayment}
               onCancel={() => setAddingPayment(false)}
+              saving={savingPayment}
             />
           ) : (
             <button
@@ -361,6 +386,17 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
       {editing && (
         <Modal title="Editar gasto" onClose={() => setEditing(null)}>
           <ExpenseEditForm expense={editing} onSave={handleSave} onCancel={() => setEditing(null)} saving={saving} />
+        </Modal>
+      )}
+
+      {editingPayment && (
+        <Modal title="Editar abatimento" onClose={() => setEditingPayment(null)}>
+          <PaymentForm
+            initial={editingPayment}
+            onSubmit={handleUpdatePayment}
+            onCancel={() => setEditingPayment(null)}
+            saving={savingPayment}
+          />
         </Modal>
       )}
     </div>

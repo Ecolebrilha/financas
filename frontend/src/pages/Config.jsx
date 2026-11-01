@@ -6,7 +6,7 @@ import EntityManager from '../components/EntityManager';
 import IncomesManager from '../components/IncomesManager';
 import RecurringManager from '../components/RecurringManager';
 import RecurringIncomeManager from '../components/RecurringIncomeManager';
-import { PAYMENT_TYPE_LABELS } from '../lib/constants';
+import { PAYMENT_TYPE_LABELS, INCOME_TYPE_LABELS } from '../lib/constants';
 import { formatCurrency } from '../lib/format';
 
 const TABS = [
@@ -19,6 +19,7 @@ const TABS = [
 ];
 
 const PAYMENT_TYPE_OPTIONS = Object.entries(PAYMENT_TYPE_LABELS).map(([value, label]) => ({ value, label }));
+const INCOME_TYPE_OPTIONS = Object.entries(INCOME_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 
 export default function Config() {
   const { people, categories, paymentMethods, reload } = useAppData();
@@ -88,15 +89,24 @@ export default function Config() {
                 type: 'checkbox',
               },
               { key: 'creditLimit', label: 'Limite máximo (opcional)', type: 'number', min: 0 },
+              {
+                key: 'creditLimitIncomeType',
+                label: 'Limite vem de uma receita fixa (ex: Flash/VA-VR)',
+                type: 'select',
+                options: INCOME_TYPE_OPTIONS,
+                emptyLabel: 'Não — usar o limite máximo fixo acima',
+              },
               { key: 'color', label: 'Cor', type: 'color' },
             ]}
             describe={(item) => {
               let text = `${item.name} — ${PAYMENT_TYPE_LABELS[item.type]}`;
               if (item.dueDateFollowsPurchase) text += ' · vence 1 mês após a compra';
               else if (item.dueDay) text += ` · vence dia ${item.dueDay}`;
-              if (item.creditLimit != null) {
-                const available = item.creditLimit - (item.usedLimit || 0);
-                text += ` · disponível ${formatCurrency(available)} de ${formatCurrency(item.creditLimit)}`;
+              const limit = item.effectiveCreditLimit ?? item.creditLimit;
+              if (limit != null) {
+                const available = limit - (item.usedLimit || 0);
+                text += ` · disponível ${formatCurrency(available)} de ${formatCurrency(limit)}`;
+                if (item.creditLimitIncomeType) text += ` (${INCOME_TYPE_LABELS[item.creditLimitIncomeType]})`;
               }
               return text;
             }}

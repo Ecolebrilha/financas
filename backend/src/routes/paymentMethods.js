@@ -1,8 +1,8 @@
 const express = require('express');
 const prisma = require('../db');
 const { simpleCrudRouter } = require('../utils/crudFactory');
-const { getUsedCreditLimits, getUsedLimitDetail } = require('../utils/cards');
-const { PAYMENT_TYPES } = require('../constants');
+const { getUsedCreditLimits, getUsedLimitDetail, getDynamicCreditLimits } = require('../utils/cards');
+const { PAYMENT_TYPES, INCOME_TYPES } = require('../constants');
 
 const router = express.Router();
 
@@ -19,8 +19,16 @@ router.get('/', async (req, res) => {
   // "Limites de crédito" junto com os cartões.
   const cardsWithLimit = items.filter((pm) => pm.creditLimit != null);
   const usedByCard = await getUsedCreditLimits(cardsWithLimit);
+  // Pra cartão ligado a uma receita fixa (ver creditLimitIncomeType), o
+  // limite "de verdade" não é o creditLimit fixo cadastrado — é quanto
+  // essa receita depositou no período atual. effectiveCreditLimit é esse
+  // valor (com o creditLimit fixo como fallback); creditLimit em si
+  // continua intacto, é o que aparece pra editar em Mais → Cartões.
+  const dynamicByCard = await getDynamicCreditLimits(cardsWithLimit);
   const withUsedLimit = items.map((pm) =>
-    pm.creditLimit != null ? { ...pm, usedLimit: usedByCard.get(pm.id) ?? 0 } : pm,
+    pm.creditLimit != null
+      ? { ...pm, usedLimit: usedByCard.get(pm.id) ?? 0, effectiveCreditLimit: dynamicByCard.get(pm.id) ?? pm.creditLimit }
+      : pm,
   );
   res.json(withUsedLimit);
 });
@@ -36,7 +44,17 @@ router.get('/:id/used-limit-detail', async (req, res) => {
 
 router.use(
   simpleCrudRouter('paymentMethod', {
-    fields: ['name', 'type', 'dueDay', 'closingDay', 'color', 'sortOrder', 'creditLimit', 'dueDateFollowsPurchase'],
+    fields: [
+      'name',
+      'type',
+      'dueDay',
+      'closingDay',
+      'color',
+      'sortOrder',
+      'creditLimit',
+      'creditLimitIncomeType',
+      'dueDateFollowsPurchase',
+    ],
     requiredFields: ['name', 'type'],
     validate: (body, { partial } = {}) => {
       if (body.type !== undefined && !PAYMENT_TYPES.includes(body.type)) {
@@ -49,6 +67,11 @@ router.use(
       }
       if (body.creditLimit !== undefined && body.creditLimit !== null && !Number.isFinite(Number(body.creditLimit))) {
         return 'creditLimit deve ser um número';
+      }
+      if (body.creditLimitIncomeType !== undefined && body.creditLimitIncomeType !== null && body.creditLimitIncomeType !== '') {
+        if (!INCOME_TYPES.includes(body.creditLimitIncomeType)) {
+          return `creditLimitIncomeType deve ser um de: ${INCOME_TYPES.join(', ')}`;
+        }
       }
       return null;
     },

@@ -22,10 +22,15 @@ export default function CreditLimits({ paymentMethods }) {
   const items = paymentMethods
     .filter((pm) => pm.creditLimit != null)
     .map((pm) => {
+      // effectiveCreditLimit é o limite "de verdade" pra cartão ligado a
+      // uma receita fixa (ver creditLimitIncomeType no backend) — varia
+      // mês a mês com o que essa receita depositou; creditLimit fixo só
+      // entra como fallback se ainda não tiver receita lançada.
+      const limit = pm.effectiveCreditLimit ?? pm.creditLimit;
       const used = pm.usedLimit || 0;
-      const available = pm.creditLimit - used;
-      const percentUsed = pm.creditLimit > 0 ? (used / pm.creditLimit) * 100 : 0;
-      return { pm, used, available, percentUsed };
+      const available = limit - used;
+      const percentUsed = limit > 0 ? (used / limit) * 100 : 0;
+      return { pm, limit, used, available, percentUsed };
     })
     .sort((a, b) => b.percentUsed - a.percentUsed);
 
@@ -36,8 +41,8 @@ export default function CreditLimits({ paymentMethods }) {
   return (
     <>
       <ul className="space-y-3">
-        {items.map(({ pm, used, available }) => {
-          const { color, fillWidth } = meterFor(available, pm.creditLimit);
+        {items.map(({ pm, limit, used, available }) => {
+          const { color, fillWidth } = meterFor(available, limit);
           return (
             <li key={pm.id}>
               <button type="button" onClick={() => setDetailId(pm.id)} className="w-full text-left">
@@ -51,7 +56,7 @@ export default function CreditLimits({ paymentMethods }) {
                   <div className="h-full rounded-full" style={{ width: `${fillWidth}%`, backgroundColor: color }} />
                 </div>
                 <p className="text-xs text-muted mt-1">
-                  {formatCurrency(used)} usado de {formatCurrency(pm.creditLimit)} — toque pra ver o que está usando
+                  {formatCurrency(used)} usado de {formatCurrency(limit)} — toque pra ver o que está usando
                 </p>
               </button>
             </li>

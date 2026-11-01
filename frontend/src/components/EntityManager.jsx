@@ -9,9 +9,13 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === 'select') {
     return (
       <SelectField {...props}>
-        <option value="" disabled>
-          Selecione
-        </option>
+        {field.required ? (
+          <option value="" disabled>
+            Selecione
+          </option>
+        ) : (
+          <option value="">{field.emptyLabel || 'Nenhuma'}</option>
+        )}
         {field.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
