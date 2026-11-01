@@ -86,7 +86,7 @@ export default function MonthOverview({
       </div>
       {expensesImmediate != null && expensesCard != null && (
         <div className="flex items-center justify-between mt-1 text-[11px] text-muted">
-          <span>já pago (Pix/Débito) {formatCurrency(expensesImmediate)}</span>
+          <span>já pago (Pix/Débito/Flash) {formatCurrency(expensesImmediate)}</span>
           <span>cartão a vencer {formatCurrency(expensesCard)}</span>
         </div>
       )}

@@ -92,11 +92,12 @@ async function getPeriodData(monthParam) {
   const selfPeriodExpenses = expenses.filter((e) => e.person?.isSelf);
   const selfExpenses = round2(sum(selfPeriodExpenses, 'amount'));
   // Dentro dos SEUS gastos, separa o que já saiu de verdade do seu
-  // bolso (Pix/Débito — pago na hora, não tem fatura) do que é dívida de
-  // cartão de crédito que só vence depois. Pra fluxo de caixa, os dois
-  // contam igual no saldo total, mas são coisas diferentes: um já foi,
-  // o outro ainda precisa ter dinheiro guardado pra pagar na hora certa.
-  const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD'];
+  // bolso (Pix/Débito/Flash — pago na hora, não tem fatura; Flash é
+  // saldo pré-pago, gasto na hora igual Pix) do que é dívida de cartão
+  // de crédito que só vence depois. Pra fluxo de caixa, os dois contam
+  // igual no saldo total, mas são coisas diferentes: um já foi, o outro
+  // ainda precisa ter dinheiro guardado pra pagar na hora certa.
+  const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD', 'VOUCHER'];
   const selfExpensesImmediate = round2(
     sum(selfPeriodExpenses.filter((e) => IMMEDIATE_TYPES.includes(e.paymentMethod?.type)), 'amount'),
   );

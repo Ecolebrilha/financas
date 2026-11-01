@@ -3,7 +3,7 @@ import { STATUS } from '../lib/colors';
 import { formatCurrency, formatDate } from '../lib/format';
 import { INCOME_TYPE_LABELS } from '../lib/constants';
 
-const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD'];
+const IMMEDIATE_TYPES = ['PIX', 'DEBIT_CARD', 'VOUCHER'];
 
 function Section({ title, color, total, children }) {
   return (
@@ -92,7 +92,7 @@ export default function BalanceDetailModal({ onClose, incomes, expenses, owedByP
 
       <Section title="Seus gastos" color={STATUS.critical} total={totals.expenses}>
         <SubList
-          label={`Já pago (Pix/Débito) — ${formatCurrency(totals.expensesImmediate)}`}
+          label={`Já pago (Pix/Débito/Flash) — ${formatCurrency(totals.expensesImmediate)}`}
           items={immediate}
           renderExtra={(e) => e.paymentMethod?.name}
         />
