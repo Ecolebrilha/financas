@@ -53,6 +53,8 @@ router.get('/', async (req, res) => {
   // no mês seguinte o repasse do saque no limite do cartão (opção
   // recomendada) que cobriu a falta. O ponto de partida é a falta REAL da
   // tela Caixa (dinheiro em conta + Flash), não o saldo por competência.
+  const excludesPaid = monthParam === todayKey;
+  const cash = isFuture || excludesPaid ? await getCashOverview() : null;
   let carryOver = 0;
   if (isFuture) {
     const dues = new Map();
@@ -63,7 +65,6 @@ router.get('/', async (req, res) => {
         dues.set(key, round2((dues.get(key) || 0) + (installments === 1 ? total : perInstallment)));
       }
     };
-    const cash = await getCashOverview();
     if (cash.withdrawal) schedule(cash.withdrawal, todayKey);
 
     let cursor = shiftMonthKey(todayKey, 1);
@@ -81,19 +82,20 @@ router.get('/', async (req, res) => {
       guard += 1;
     }
   }
-  // No período em aberto, o que já foi pago na hora (Pix/Débito/Flash) já
-  // saiu do bolso — não é mais algo a cobrir, então fica fora do saldo e
-  // do saque sugerido (continua listado, só não entra na conta). Os
-  // reembolsos dos outros seguem contando como receita normalmente.
-  const excludesPaid = monthParam === todayKey;
+  // No período em aberto o saldo é o da tela Caixa (dinheiro de verdade:
+  // o que já foi pago na hora já saiu do bolso, o saldo em conta entra no
+  // lugar do salário já recebido), pra Painel e Caixa nunca discordarem.
+  // O detalhe continua listando tudo, com a diferença em "cashAdjustment".
   const periodExpenses = excludesPaid ? data.selfExpensesCard : data.selfExpenses;
-  const periodBalance = excludesPaid ? round2(data.income - data.selfExpensesCard) : data.balance;
+  const accrualBalance = excludesPaid ? round2(data.income - data.selfExpensesCard) : data.balance;
+  const periodBalance = excludesPaid ? cash.result.finalWithOthers : data.balance;
+  const cashAdjustment = excludesPaid ? round2(periodBalance - accrualBalance) : 0;
   const projectedBalance = round2(carryOver + data.balance);
   const headlineBalance = isFuture ? projectedBalance : periodBalance;
 
   // Quando o saldo fica negativo, sugere como sacar a diferença no limite
   // do cartão (ver buildWithdrawalAdvice).
-  const cardWithdrawal = headlineBalance < 0 ? await buildWithdrawalAdvice(round2(Math.abs(headlineBalance)), monthParam) : null;
+  const cardWithdrawal = excludesPaid ? cash.withdrawal : headlineBalance < 0 ? await buildWithdrawalAdvice(round2(Math.abs(headlineBalance)), monthParam) : null;
 
   const [openInstallments, cardInvoices] = await Promise.all([getOpenInstallmentGroups(), getCardInvoices(monthParam)]);
 
@@ -110,6 +112,7 @@ router.get('/', async (req, res) => {
       incomeFromOthers: data.incomeFromOthers,
       balance: periodBalance,
       paidExcluded: excludesPaid,
+      cashAdjustment,
       isFuture,
       projectedBalance: isFuture ? projectedBalance : periodBalance,
       carryOver: isFuture ? carryOver : 0,

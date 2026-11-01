@@ -105,8 +105,19 @@ export default function BalanceDetailModal({ onClose, incomes, expenses, owedByP
         />
       </Section>
 
+      {totals.cashAdjustment !== 0 && totals.cashAdjustment != null && (
+        <div className="mb-2 flex items-start justify-between gap-3">
+          <span className="text-xs text-muted">
+            Ajuste pelo dinheiro real (Caixa): saldo em conta e Flash no lugar do que já foi recebido, menos o que está separado
+          </span>
+          <span className="text-sm font-medium tabular-nums shrink-0">
+            {totals.cashAdjustment > 0 ? '+ ' : '− '}
+            {formatCurrency(Math.abs(totals.cashAdjustment))}
+          </span>
+        </div>
+      )}
       <div className="pt-2 border-t border-black/5 dark:border-white/10 flex items-center justify-between">
-        <span className="text-sm font-semibold">Saldo (receita − seus gastos)</span>
+        <span className="text-sm font-semibold">{totals.paidExcluded ? 'Saldo (igual ao da Caixa)' : 'Saldo (receita − seus gastos)'}</span>
         <span
           className="text-base font-bold tabular-nums"
           style={{ color: totals.balance < 0 ? STATUS.critical : STATUS.good }}

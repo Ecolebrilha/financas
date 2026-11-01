@@ -29,6 +29,7 @@ export default function MonthOverview({
   balance,
   isFuture,
   paidExcluded,
+  cashAdjustment,
   projectedBalance,
   carryOver,
   incomesList,
@@ -124,7 +125,7 @@ export default function MonthOverview({
           incomes={incomesList}
           expenses={expensesList}
           owedByPerson={owedByPerson}
-          totals={{ income, incomeRegular, incomeFromOthers, expenses, expensesImmediate, expensesCard, balance, paidExcluded }}
+          totals={{ income, incomeRegular, incomeFromOthers, expenses, expensesImmediate, expensesCard, balance, paidExcluded, cashAdjustment }}
         />
       )}
     </div>
