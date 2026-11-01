@@ -17,7 +17,7 @@ function meterFor(available, creditLimit) {
   return { color, fillWidth: Math.min(Math.max(percentAvailable, 0), 100) };
 }
 
-export default function CreditLimits({ paymentMethods }) {
+export default function CreditLimits({ paymentMethods, onChanged }) {
   const [detailId, setDetailId] = useState(null);
   const items = paymentMethods
     .filter((pm) => pm.creditLimit != null)
@@ -63,7 +63,9 @@ export default function CreditLimits({ paymentMethods }) {
           );
         })}
       </ul>
-      {detailId && <CreditLimitDetailModal paymentMethodId={detailId} onClose={() => setDetailId(null)} />}
+      {detailId && (
+        <CreditLimitDetailModal paymentMethodId={detailId} onClose={() => setDetailId(null)} onChanged={onChanged} />
+      )}
     </>
   );
 }

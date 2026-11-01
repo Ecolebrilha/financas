@@ -176,6 +176,14 @@ async function getUsedLimitDetail(cardId) {
       periodLabel,
       installmentNumber: e.installmentNumber,
       installmentTotal: e.installmentTotal,
+      // Resto só pra permitir editar/apagar o lançamento direto desta
+      // tela (ver ExpenseEditForm) sem precisar buscar de novo.
+      personId: e.personId,
+      paymentMethodId: e.paymentMethodId,
+      categoryId: e.categoryId,
+      notes: e.notes,
+      billingDate: e.billingDate,
+      installmentGroupId: e.installmentGroupId,
     }))
     .sort((a, b) => a.periodLabel.localeCompare(b.periodLabel) || new Date(a.date) - new Date(b.date));
 

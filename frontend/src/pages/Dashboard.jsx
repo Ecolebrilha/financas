@@ -209,7 +209,7 @@ export default function Dashboard() {
             <p className="text-xs text-muted -mt-2 mb-2">
               Calculado automaticamente: fatura atual em aberto + parcelas futuras já lançadas de cada cartão.
             </p>
-            <CreditLimits paymentMethods={paymentMethods} />
+            <CreditLimits paymentMethods={paymentMethods} onChanged={load} />
           </Card>
 
           <Card title="Gasto por método de pagamento">
