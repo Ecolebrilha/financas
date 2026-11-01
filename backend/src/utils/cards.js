@@ -21,6 +21,10 @@ async function getCardInvoices(monthParam) {
     where: { type: { in: ['CREDIT_CARD', 'PIX', 'VOUCHER'] }, active: true },
     orderBy: { sortOrder: 'asc' },
   });
+  // Mesma troca de creditLimit fixo pelo dinâmico (ver getDynamicCreditLimits)
+  // feita em GET /payment-methods — precisa de novo aqui porque esta
+  // função busca os cartões direto do banco, sem passar por lá.
+  const dynamicLimits = await getDynamicCreditLimits(cards);
 
   const results = [];
   for (const card of cards) {
@@ -90,8 +94,10 @@ async function getCardInvoices(monthParam) {
       }))
       .sort((a, b) => b.pending - a.pending);
 
+    const effectiveCard = dynamicLimits.has(card.id) ? { ...card, creditLimit: dynamicLimits.get(card.id) } : card;
+
     results.push({
-      paymentMethod: card,
+      paymentMethod: effectiveCard,
       nextDueDate: due,
       openInvoiceTotal: round2(total),
       itemCount: matching.length,
