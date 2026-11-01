@@ -21,7 +21,7 @@ import { IconEdit, IconPlus, IconTrash } from '../components/icons';
 import { currentPeriodLabel, formatCurrency, formatDate } from '../lib/format';
 
 export default function Dashboard() {
-  const { paymentMethods, activePeople } = useAppData();
+  const { paymentMethods, activePeople, reload: reloadAppData } = useAppData();
   const showToast = useToast();
   const [month, setMonth] = useState(currentPeriodLabel());
   const [summary, setSummary] = useState(null);
@@ -47,6 +47,12 @@ export default function Dashboard() {
       .then(setSummary)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    // paymentMethods (usado em "Limites de crédito") vem do AppDataContext,
+    // carregado só uma vez quando o app abre — sem isso, o usedLimit
+    // mostrado aqui fica desatualizado assim que você lança/edita um
+    // gasto em qualquer lugar (inclusive fora do Painel), até recarregar
+    // a página inteira.
+    reloadAppData();
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
