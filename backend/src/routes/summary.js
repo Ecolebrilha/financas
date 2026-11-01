@@ -172,7 +172,7 @@ router.get('/', async (req, res) => {
   // SEGUINTE também no vermelho, parcelar em 2x (mais caro no total, mas
   // mais leve por mês) costuma ser a escolha certa — mesmo critério que
   // você já usa na prática, só automatizado.
-  const WITHDRAWAL_FEE_RATES = { 1: 0.0498, 2: 0.0691 };
+  const WITHDRAWAL_FEE_RATES = { 1: 0.0357, 2: 0.0779 };
   let cardWithdrawal = null;
   if (headlineBalance < 0) {
     const amountNeeded = round2(Math.abs(headlineBalance));
