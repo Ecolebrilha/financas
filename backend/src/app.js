@@ -10,6 +10,7 @@ const recurringRouter = require('./routes/recurring');
 const recurringIncomesRouter = require('./routes/recurringIncomes');
 const paymentsRouter = require('./routes/payments');
 const summaryRouter = require('./routes/summary');
+const cashRouter = require('./routes/cash');
 const requireAuth = require('./middleware/auth');
 
 const app = express();
@@ -29,6 +30,7 @@ app.use('/api/recurring', recurringRouter);
 app.use('/api/recurring-incomes', recurringIncomesRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/summary', summaryRouter);
+app.use('/api/cash', cashRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });

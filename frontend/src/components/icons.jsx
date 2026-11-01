@@ -41,6 +41,16 @@ export const IconTrend = (props) =>
     props,
   );
 
+export const IconWallet = (props) =>
+  base(
+    <>
+      <path d="M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 1 0-4h13" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4" />
+      <path d="M21 12h-4a2 2 0 0 0 0 4h4v-4z" />
+    </>,
+    props,
+  );
+
 export const IconMore = (props) =>
   base(
     <>

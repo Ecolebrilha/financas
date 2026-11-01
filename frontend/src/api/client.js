@@ -106,6 +106,10 @@ export const api = {
     update: (id, data) => request(`/payments/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id) => request(`/payments/${id}`, { method: 'DELETE' }),
   },
+  cash: {
+    get: () => request('/cash'),
+    setBalance: (amount) => request('/cash/balance', { method: 'PUT', body: JSON.stringify({ amount }) }),
+  },
   summary: {
     get: (month) => request(`/summary${qs({ month })}`),
     history: (months) => request(`/summary/history${qs({ months })}`),

@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import QuickAddExpense from './pages/QuickAddExpense';
 import Dashboard from './pages/Dashboard';
+import Cash from './pages/Cash';
 import ExpensesList from './pages/ExpensesList';
 import History from './pages/History';
 import Statement from './pages/Statement';
@@ -13,6 +14,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<QuickAddExpense />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/caixa" element={<Cash />} />
         <Route path="/gastos" element={<ExpensesList />} />
         <Route path="/historico" element={<History />} />
         <Route path="/extrato" element={<Statement />} />

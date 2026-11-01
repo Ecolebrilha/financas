@@ -5,7 +5,7 @@ import PersonPicker from './PersonPicker';
 import { toInputDate, toInputMonth } from '../lib/format';
 
 export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
-  const { activePeople, activeCategories, activePaymentMethods } = useAppData();
+  const { activePeople, activeCategories, activePaymentMethods, paymentMethods } = useAppData();
   const [form, setForm] = useState({
     description: expense.description,
     amount: String(Math.abs(expense.amount)),
@@ -18,7 +18,15 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
     installmentNumber: expense.installmentNumber || '',
     installmentTotal: expense.installmentTotal || '',
     billingDate: expense.billingDate ? toInputMonth(expense.billingDate) : '',
+    unpaid: !!expense.unpaid,
   });
+
+  // Só Pix/Débito faz sentido como "ainda não paguei" (cartão já vira fatura,
+  // Flash já saiu do saldo na hora). Também só manda o campo se o objeto
+  // editado veio com ele — algumas listas montam o gasto sem esse campo, e
+  // mandar false por padrão desmarcaria sem querer.
+  const selectedType = paymentMethods.find((pm) => pm.id === form.paymentMethodId)?.type;
+  const canMarkUnpaid = selectedType === 'PIX' || selectedType === 'DEBIT_CARD';
 
   const set = (field) => (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -39,6 +47,7 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
       installmentNumber: form.installmentNumber ? Number(form.installmentNumber) : null,
       installmentTotal: form.installmentTotal ? Number(form.installmentTotal) : null,
       billingDate: form.billingDate ? `${form.billingDate}-01` : null,
+      ...(expense.unpaid !== undefined ? { unpaid: canMarkUnpaid && form.unpaid } : {}),
     });
   }
 
@@ -81,6 +90,15 @@ export default function ExpenseEditForm({ expense, onSave, onCancel, saving }) {
           vem em dezembro). Deixe em branco pra usar a data da compra normalmente.
         </p>
       </div>
+      {canMarkUnpaid && expense.unpaid !== undefined && (
+        <label className="flex items-start gap-2 text-sm text-ink2 dark:text-ink2dk">
+          <input type="checkbox" checked={form.unpaid} onChange={set('unpaid')} className="h-4 w-4 mt-0.5" />
+          <span>
+            Ainda não paguei esse valor — preciso separar o dinheiro
+            <span className="block text-xs text-muted">Aparece na aba Caixa até você marcar como pago.</span>
+          </span>
+        </label>
+      )}
       <TextAreaField label="Observações" value={form.notes} onChange={set('notes')} />
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-black/10 dark:border-white/15 py-3 font-medium">

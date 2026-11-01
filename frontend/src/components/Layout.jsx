@@ -1,9 +1,10 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { IconPlus, IconDashboard, IconList, IconTrend, IconMore } from './icons';
+import { IconPlus, IconDashboard, IconWallet, IconList, IconTrend, IconMore } from './icons';
 
 const TABS = [
   { to: '/', label: 'Lançar', icon: IconPlus, end: true },
   { to: '/dashboard', label: 'Painel', icon: IconDashboard },
+  { to: '/caixa', label: 'Caixa', icon: IconWallet },
   { to: '/gastos', label: 'Gastos', icon: IconList },
   { to: '/historico', label: 'Histórico', icon: IconTrend },
   { to: '/config', label: 'Mais', icon: IconMore },
@@ -16,7 +17,7 @@ export default function Layout() {
         <Outlet />
       </main>
       <nav className="fixed bottom-0 left-0 right-0 bg-surface dark:bg-surfacedk border-t border-black/10 dark:border-white/10 safe-bottom z-20">
-        <div className="max-w-2xl mx-auto grid grid-cols-5">
+        <div className="max-w-2xl mx-auto grid grid-cols-6">
           {TABS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}

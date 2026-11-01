@@ -137,6 +137,13 @@ model Expense {
   // fatura inteira — agora cada compra é marcada como paga uma a uma.
   settledAt       DateTime?
 
+  // Gasto no Pix/Débito que ainda NÃO saiu do seu bolso (ex: você vai
+  // pagar pessoalmente depois) — o dinheiro tem que ficar separado. A
+  // tela Caixa lista esses e desconta do que você tem livre; marcar como
+  // pago é só desligar essa flag. Não muda nada no Painel (lá continua
+  // contando como gasto já feito).
+  unpaid          Boolean  @default(false)
+
   personId        String
   person          Person   @relation(fields: [personId], references: [id])
 
@@ -228,4 +235,15 @@ model RecurringIncome {
   createdAt   DateTime  @default(now())
 
   incomes Income[]
+}
+
+// Posição de caixa informada por você (quanto tem na conta hoje) — usada
+// pela tela Caixa como ponto de partida pra projetar o que sobra/falta
+// depois de tudo que entra e sai. Linha única (id fixo "main"), editada
+// na própria tela; updatedAt mostra há quanto tempo o número foi
+// conferido pela última vez.
+model CashPosition {
+  id             String   @id @default("main")
+  accountBalance Float    @default(0)
+  updatedAt      DateTime @updatedAt
 }

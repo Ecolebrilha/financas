@@ -81,6 +81,7 @@ async function getCardInvoices(monthParam) {
         installmentNumber: e.installmentNumber,
         installmentTotal: e.installmentTotal,
         installmentGroupId: e.installmentGroupId,
+        unpaid: e.unpaid,
       });
       bucket.spent += e.amount;
       if (e.settledAt) bucket.settled += e.amount;
@@ -215,6 +216,7 @@ async function getUsedLimitDetail(cardId) {
       notes: e.notes,
       billingDate: e.billingDate,
       installmentGroupId: e.installmentGroupId,
+      unpaid: e.unpaid,
     }))
     .sort((a, b) => a.periodLabel.localeCompare(b.periodLabel) || new Date(a.date) - new Date(b.date));
 

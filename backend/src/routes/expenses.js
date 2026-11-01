@@ -88,6 +88,7 @@ router.post('/', async (req, res) => {
     categoryId: body.categoryId,
     notes: body.notes || null,
     billingDate,
+    unpaid: !!body.unpaid,
   };
 
   try {
@@ -117,6 +118,7 @@ router.put('/:id', async (req, res) => {
   if (body.paymentMethodId !== undefined) data.paymentMethodId = body.paymentMethodId;
   if (body.categoryId !== undefined) data.categoryId = body.categoryId;
   if (body.notes !== undefined) data.notes = body.notes || null;
+  if (body.unpaid !== undefined) data.unpaid = !!body.unpaid;
   if (body.billingDate !== undefined) {
     data.billingDate = body.billingDate ? parseDate(body.billingDate) : null;
   } else if (data.date !== undefined || data.paymentMethodId !== undefined) {

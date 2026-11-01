@@ -50,10 +50,11 @@ const EMPTY_FORM = {
   installmentTotal: '2',
   generateFutureInstallments: true,
   billingDate: '',
+  unpaid: false,
 };
 
 export default function QuickAddExpense() {
-  const { activePeople, activeCategories, activePaymentMethods, loading } = useAppData();
+  const { activePeople, activeCategories, activePaymentMethods, paymentMethods, loading } = useAppData();
   const showToast = useToast();
   const [tipo, setTipo] = useState('unico');
   const [form, setForm] = useState(EMPTY_FORM);
@@ -106,6 +107,12 @@ export default function QuickAddExpense() {
   function handleSplitAmountChange(personId, value) {
     setSplitAmounts((prev) => ({ ...prev, [personId]: value }));
   }
+
+  // "Ainda não paguei" (separar o dinheiro na aba Caixa) só faz sentido pra
+  // gasto SEU em Pix/Débito, lançado como único.
+  const selectedType = paymentMethods.find((pm) => pm.id === form.paymentMethodId)?.type;
+  const selectedPersonIsSelf = !!activePeople.find((p) => p.id === form.personId)?.isSelf;
+  const canMarkUnpaid = tipo === 'unico' && selectedPersonIsSelf && (selectedType === 'PIX' || selectedType === 'DEBIT_CARD');
 
   const splitSum = round2(splitPeopleIds.reduce((s, id) => s + (Number(splitAmounts[id]) || 0), 0));
   const splitMatches = Math.abs(splitSum - Number(form.amount || 0)) <= 0.009;
@@ -205,6 +212,9 @@ export default function QuickAddExpense() {
         }
         if (tipo === 'estorno') {
           payload.isRefund = true;
+        }
+        if (canMarkUnpaid && form.unpaid) {
+          payload.unpaid = true;
         }
         await api.expenses.create(payload);
         showToast(tipo === 'estorno' ? 'Estorno lançado! Já desconta da fatura.' : 'Gasto lançado!');
@@ -311,6 +321,16 @@ export default function QuickAddExpense() {
             </option>
           ))}
         </SelectField>
+
+        {canMarkUnpaid && (
+          <label className="flex items-start gap-2 text-sm text-ink2 dark:text-ink2dk">
+            <input type="checkbox" className="h-4 w-4 mt-0.5" checked={form.unpaid} onChange={set('unpaid')} />
+            <span>
+              Ainda não paguei — preciso separar o dinheiro
+              <span className="block text-xs text-muted">Fica listado na aba Caixa até você marcar como pago.</span>
+            </span>
+          </label>
+        )}
 
         <SelectField label="Categoria" value={form.categoryId} onChange={set('categoryId')} required>
           <option value="" disabled>
