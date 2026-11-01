@@ -19,7 +19,6 @@ import { IncomeForm } from '../components/IncomesManager';
 import ExpenseEditForm from '../components/ExpenseEditForm';
 import { IconEdit, IconPlus, IconTrash } from '../components/icons';
 import { currentPeriodLabel, formatCurrency, formatDate } from '../lib/format';
-import { confirmGroupDateScope } from '../lib/installments';
 
 export default function Dashboard() {
   const { paymentMethods, activePeople, reload: reloadAppData } = useAppData();
@@ -78,10 +77,9 @@ export default function Dashboard() {
   }
 
   async function handleSaveExpense(data) {
-    const scope = confirmGroupDateScope(editingExpense, data);
     setSaving(true);
     try {
-      await api.expenses.update(editingExpense.id, data, scope ? { scope } : undefined);
+      await api.expenses.update(editingExpense.id, data);
       showToast('Gasto atualizado!');
       setEditingExpense(null);
       load();

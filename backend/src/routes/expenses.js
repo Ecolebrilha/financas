@@ -105,12 +105,6 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  // scope=group, junto com uma mudança de data, corrige a mesma data
-  // (mesmo dia do mês) em todas as parcelas futuras do grupo — sem isso,
-  // corrigir só a parcela atual não resolve nada: as próximas faturas
-  // continuam com a data errada original, porque cada parcela é criada
-  // a partir da data base da compra, não da parcela anterior.
-  const { scope } = req.query;
   const body = req.body;
   const data = {};
   if (body.description !== undefined) data.description = String(body.description).trim();
@@ -148,22 +142,6 @@ router.put('/:id', async (req, res) => {
 
   try {
     const expense = await prisma.expense.update({ where: { id: req.params.id }, data, include: INCLUDE });
-
-    if (scope === 'group' && expense.installmentGroupId && body.date !== undefined && expense.installmentNumber != null) {
-      const futureRows = await prisma.expense.findMany({
-        where: {
-          installmentGroupId: expense.installmentGroupId,
-          installmentNumber: { gt: expense.installmentNumber },
-        },
-      });
-      for (const row of futureRows) {
-        const monthsAhead = row.installmentNumber - expense.installmentNumber;
-        const rowData = { date: addMonths(expense.date, monthsAhead) };
-        if (row.billingDate) rowData.billingDate = addMonths(expense.billingDate || expense.date, monthsAhead);
-        await prisma.expense.update({ where: { id: row.id }, data: rowData });
-      }
-    }
-
     res.json(expense);
   } catch (e) {
     res.status(404).json({ error: 'Gasto não encontrado' });

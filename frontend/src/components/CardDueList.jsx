@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { formatCurrency, formatDate } from '../lib/format';
-import { confirmGroupDateScope } from '../lib/installments';
 import { STATUS } from '../lib/colors';
 import { IconCheck, IconChevronRight, IconEdit, IconTrash } from './icons';
 import Modal from './Modal';
@@ -141,10 +140,9 @@ export default function CardDueList({ cardInvoices, people, onSettled }) {
   }
 
   async function handleSave(payload) {
-    const scope = confirmGroupDateScope(editing, payload);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, payload, scope ? { scope } : undefined);
+      await api.expenses.update(editing.id, payload);
       showToast('Gasto atualizado!');
       setEditing(null);
       onSettled();

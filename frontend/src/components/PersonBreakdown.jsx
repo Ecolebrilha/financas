@@ -3,7 +3,6 @@ import { api } from '../api/client';
 import { useToast } from '../context/ToastContext';
 import { categoricalColor, STATUS } from '../lib/colors';
 import { formatCurrency, formatDate, toInputDate } from '../lib/format';
-import { confirmGroupDateScope } from '../lib/installments';
 import Modal from './Modal';
 import ExpenseEditForm from './ExpenseEditForm';
 import { NumberField, DateField, TextField } from './fields';
@@ -145,10 +144,9 @@ export default function PersonBreakdown({ data, expenses, payments, period, onCh
   const expandedPayments = expandedId ? (payments || []).filter((p) => p.personId === expandedId) : [];
 
   async function handleSave(payload) {
-    const scope = confirmGroupDateScope(editing, payload);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, payload, scope ? { scope } : undefined);
+      await api.expenses.update(editing.id, payload);
       showToast('Gasto atualizado!');
       setEditing(null);
       onChanged?.();

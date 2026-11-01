@@ -9,7 +9,6 @@ import ExpenseEditForm from '../components/ExpenseEditForm';
 import { SelectField, TextField, SegmentedControl } from '../components/fields';
 import { IconEdit, IconTrash } from '../components/icons';
 import { currentMonthKey, formatCurrency, formatDate } from '../lib/format';
-import { confirmGroupDateScope } from '../lib/installments';
 import { STATUS } from '../lib/colors';
 
 const PERIOD_MODES = [
@@ -54,10 +53,9 @@ export default function ExpensesList() {
   useEffect(load, [periodMode, month, from, to, personId, paymentMethodId, categoryId, search]);
 
   async function handleSave(data) {
-    const scope = confirmGroupDateScope(editing, data);
     setSaving(true);
     try {
-      await api.expenses.update(editing.id, data, scope ? { scope } : undefined);
+      await api.expenses.update(editing.id, data);
       showToast('Gasto atualizado!');
       setEditing(null);
       load();
