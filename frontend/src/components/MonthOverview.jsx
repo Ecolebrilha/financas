@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { formatCurrency } from '../lib/format';
 import { STATUS } from '../lib/colors';
+import BalanceDetailModal from './BalanceDetailModal';
 
 // Mesmo padrão "tanque" das outras seções: a barra ilustra quanto da
 // receita já foi consumida pelos gastos. Enche em verde enquanto sobra
@@ -28,9 +30,14 @@ export default function MonthOverview({
   isFuture,
   projectedBalance,
   carryOver,
+  incomesList,
+  paymentsList,
+  expensesList,
 }) {
+  const [showDetail, setShowDetail] = useState(false);
   const headline = isFuture ? projectedBalance : balance;
   const isNegative = headline < 0;
+  const canShowDetail = incomesList != null && paymentsList != null && expensesList != null;
 
   let fillWidth;
   let color;
@@ -50,12 +57,20 @@ export default function MonthOverview({
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <span className="text-sm text-muted">{isFuture ? 'Simulação de saldo' : 'Seu saldo do mês'}</span>
+      <button
+        type="button"
+        onClick={() => canShowDetail && setShowDetail(true)}
+        disabled={!canShowDetail}
+        className="w-full flex items-baseline justify-between mb-2 text-left"
+      >
+        <span className="text-sm text-muted">
+          {isFuture ? 'Simulação de saldo' : 'Seu saldo do mês'}
+          {canShowDetail && <span className="text-[11px]"> (toque pra detalhar)</span>}
+        </span>
         <span className="text-3xl font-bold tabular-nums" style={{ color: isNegative ? STATUS.critical : STATUS.good }}>
           {formatCurrency(headline)}
         </span>
-      </div>
+      </button>
       {isFuture && (
         <p className="text-xs text-muted -mt-1 mb-2">
           {formatCurrency(balance)} deste período {carryOver !== 0 && (carryOver < 0 ? '− ' : '+ ')}
@@ -101,6 +116,15 @@ export default function MonthOverview({
           Gasto total da família no período: {formatCurrency(householdExpenses)} (inclui o que ainda vai ser cobrado dos
           outros — veja em Vencimento dos cartões).
         </p>
+      )}
+      {showDetail && canShowDetail && (
+        <BalanceDetailModal
+          onClose={() => setShowDetail(false)}
+          incomes={incomesList}
+          payments={paymentsList}
+          expenses={expensesList}
+          totals={{ income, incomeRegular, incomePayments, expenses, expensesImmediate, expensesCard, balance }}
+        />
       )}
     </div>
   );

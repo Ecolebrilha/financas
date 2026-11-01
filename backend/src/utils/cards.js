@@ -130,4 +130,39 @@ async function getUsedCreditLimits(cards) {
   return used;
 }
 
-module.exports = { getCardInvoices, getUsedCreditLimits };
+// Mesma regra de getUsedCreditLimits, mas devolve a lista item a item em
+// vez de só o total — usado pra mostrar "o que está prendendo esse
+// limite" quando a pessoa toca no cartão em Limites de crédito.
+async function getUsedLimitDetail(cardId) {
+  const card = await prisma.paymentMethod.findUnique({ where: { id: cardId } });
+  if (!card) return null;
+  const today = periodLabelForDate(new Date());
+  const expenses = await prisma.expense.findMany({
+    where: { paymentMethodId: cardId },
+    include: { person: true },
+    orderBy: { date: 'asc' },
+  });
+
+  const items = expenses
+    .map((e) => ({ expense: e, periodLabel: periodLabelFor(effectiveDate(e), card) }))
+    .filter(({ periodLabel }) => periodLabel >= today)
+    .map(({ expense: e, periodLabel }) => ({
+      id: e.id,
+      description: e.description,
+      amount: e.amount,
+      date: e.date,
+      person: e.person,
+      periodLabel,
+      installmentNumber: e.installmentNumber,
+      installmentTotal: e.installmentTotal,
+    }))
+    .sort((a, b) => a.periodLabel.localeCompare(b.periodLabel) || new Date(a.date) - new Date(b.date));
+
+  return {
+    paymentMethod: card,
+    items,
+    total: round2(items.reduce((s, i) => s + i.amount, 0)),
+  };
+}
+
+module.exports = { getCardInvoices, getUsedCreditLimits, getUsedLimitDetail };

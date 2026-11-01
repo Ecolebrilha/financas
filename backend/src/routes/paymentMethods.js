@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../db');
 const { simpleCrudRouter } = require('../utils/crudFactory');
-const { getUsedCreditLimits } = require('../utils/cards');
+const { getUsedCreditLimits, getUsedLimitDetail } = require('../utils/cards');
 const { PAYMENT_TYPES } = require('../constants');
 
 const router = express.Router();
@@ -14,12 +14,24 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   const where = req.query.includeInactive === 'true' ? {} : { active: true };
   const items = await prisma.paymentMethod.findMany({ where, orderBy: { sortOrder: 'asc' } });
-  const creditCards = items.filter((pm) => pm.type === 'CREDIT_CARD');
-  const usedByCard = await getUsedCreditLimits(creditCards);
+  // Qualquer método com limite cadastrado entra nessa conta, não só
+  // cartão de crédito — o Flash (VA/VR) também tem limite e aparece em
+  // "Limites de crédito" junto com os cartões.
+  const cardsWithLimit = items.filter((pm) => pm.creditLimit != null);
+  const usedByCard = await getUsedCreditLimits(cardsWithLimit);
   const withUsedLimit = items.map((pm) =>
-    pm.type === 'CREDIT_CARD' ? { ...pm, usedLimit: usedByCard.get(pm.id) ?? 0 } : pm,
+    pm.creditLimit != null ? { ...pm, usedLimit: usedByCard.get(pm.id) ?? 0 } : pm,
   );
   res.json(withUsedLimit);
+});
+
+// Listagem item a item do que está contando no "usado" desse cartão
+// (ver getUsedLimitDetail) — pra mostrar em "Limites de crédito" quando
+// a pessoa toca num cartão pra entender de onde vem aquele número.
+router.get('/:id/used-limit-detail', async (req, res) => {
+  const detail = await getUsedLimitDetail(req.params.id);
+  if (!detail) return res.status(404).json({ error: 'Cartão não encontrado' });
+  res.json(detail);
 });
 
 router.use(

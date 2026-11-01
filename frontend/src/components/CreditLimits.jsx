@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { formatCurrency } from '../lib/format';
 import { STATUS } from '../lib/colors';
+import CreditLimitDetailModal from './CreditLimitDetailModal';
 
 // Meter "tanque de combustível": o preenchimento representa quanto ainda
 // está disponível (não quanto foi usado) — um cartão/Flash saudável mostra
@@ -16,6 +18,7 @@ function meterFor(available, creditLimit) {
 }
 
 export default function CreditLimits({ paymentMethods }) {
+  const [detailId, setDetailId] = useState(null);
   const items = paymentMethods
     .filter((pm) => pm.creditLimit != null)
     .map((pm) => {
@@ -31,26 +34,31 @@ export default function CreditLimits({ paymentMethods }) {
   }
 
   return (
-    <ul className="space-y-3">
-      {items.map(({ pm, used, available }) => {
-        const { color, fillWidth } = meterFor(available, pm.creditLimit);
-        return (
-          <li key={pm.id}>
-            <div className="flex items-center justify-between mb-1 gap-2">
-              <span className="text-sm font-medium truncate">{pm.name}</span>
-              <span className="text-xs font-medium shrink-0" style={{ color }}>
-                {available < 0 ? `excedido em ${formatCurrency(Math.abs(available))}` : `disponível ${formatCurrency(available)}`}
-              </span>
-            </div>
-            <div className="h-2.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-              <div className="h-full rounded-full" style={{ width: `${fillWidth}%`, backgroundColor: color }} />
-            </div>
-            <p className="text-xs text-muted mt-1">
-              {formatCurrency(used)} usado de {formatCurrency(pm.creditLimit)}
-            </p>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className="space-y-3">
+        {items.map(({ pm, used, available }) => {
+          const { color, fillWidth } = meterFor(available, pm.creditLimit);
+          return (
+            <li key={pm.id}>
+              <button type="button" onClick={() => setDetailId(pm.id)} className="w-full text-left">
+                <div className="flex items-center justify-between mb-1 gap-2">
+                  <span className="text-sm font-medium truncate">{pm.name}</span>
+                  <span className="text-xs font-medium shrink-0" style={{ color }}>
+                    {available < 0 ? `excedido em ${formatCurrency(Math.abs(available))}` : `disponível ${formatCurrency(available)}`}
+                  </span>
+                </div>
+                <div className="h-2.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${fillWidth}%`, backgroundColor: color }} />
+                </div>
+                <p className="text-xs text-muted mt-1">
+                  {formatCurrency(used)} usado de {formatCurrency(pm.creditLimit)} — toque pra ver o que está usando
+                </p>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {detailId && <CreditLimitDetailModal paymentMethodId={detailId} onClose={() => setDetailId(null)} />}
+    </>
   );
 }

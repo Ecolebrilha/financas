@@ -70,6 +70,7 @@ export const api = {
     create: (data) => request('/payment-methods', { method: 'POST', body: JSON.stringify(data) }),
     update: (id, data) => request(`/payment-methods/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     remove: (id) => request(`/payment-methods/${id}`, { method: 'DELETE' }),
+    usedLimitDetail: (id) => request(`/payment-methods/${id}/used-limit-detail`),
   },
   expenses: {
     list: (params) => request(`/expenses${qs(params)}`),

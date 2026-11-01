@@ -217,6 +217,7 @@ router.get('/', async (req, res) => {
       carryOver: isFuture ? carryOver : 0,
     },
     expenses: data.expenses,
+    incomes: data.incomes,
     payments: data.payments,
     byPerson: groupSumByEntity(data.expenses, (e) => e.person, (e) => e.amount),
     byPaymentMethod: groupSumByEntity(data.expenses, (e) => e.paymentMethod, (e) => e.amount),
