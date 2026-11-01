@@ -123,27 +123,15 @@ function isRealInstallment(e) {
 // - avulso sem template recorrente: sempre conta — só existe numa
 //   fatura futura porque alguém decidiu isso explicitamente (fatura
 //   prevista manual), nunca por efeito colateral de navegação;
-// - gasto fixo recorrente (recurringTemplateId): só a ocorrência mais
-//   próxima conta. O Painel materializa o mês sendo visto com
-//   antecedência pra já mostrar a projeção — navegar vários meses pra
-//   frente acaba pré-gerando a mesma assinatura várias vezes (ex: 6
-//   meses de "Netflix" de uma vez), e cada uma dessas não é um
-//   compromisso novo, é a MESMA assinatura — só a próxima cobrança real
-//   deveria pesar no limite agora.
+// - gasto fixo recorrente (recurringTemplateId): NUNCA conta enquanto
+//   for futuro, nem a ocorrência mais próxima — por mais certo que seja
+//   que vai vir (é uma assinatura, vai cobrar todo mês mesmo), contar
+//   antes da data certa dá uma sensação de limite mais apertado do que
+//   realmente está agora, comparando valor que ainda não é real contra
+//   o limite de hoje. Só passa a contar quando virar a fatura atual de
+//   verdade (o ciclo normal do Painel materializa isso na hora certa).
 function filterFutureEntries(entries) {
-  const nearestByTemplate = new Map();
-  for (const { expense: e, periodLabel } of entries) {
-    if (!e.recurringTemplateId) continue;
-    const current = nearestByTemplate.get(e.recurringTemplateId);
-    if (!current || periodLabel < current.periodLabel) {
-      nearestByTemplate.set(e.recurringTemplateId, { periodLabel, id: e.id });
-    }
-  }
-  return entries.filter(({ expense: e }) => {
-    if (isRealInstallment(e)) return true;
-    if (!e.recurringTemplateId) return true;
-    return nearestByTemplate.get(e.recurringTemplateId)?.id === e.id;
-  });
+  return entries.filter(({ expense: e }) => isRealInstallment(e) || !e.recurringTemplateId);
 }
 
 // Quanto do limite de cada cartão está ocupado AGORA, calculado a partir
