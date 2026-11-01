@@ -271,7 +271,7 @@ export default function Cash() {
             <Line
               key={p.id}
               label={`${p.icon || '👤'} ${p.name}`}
-              hint={`deve ${formatCurrency(p.owed)}${p.received > 0 ? ` · já abateu ${formatCurrency(p.received)}` : ''}`}
+              hint="Pix/Flash ainda a receber"
               value={p.pending > 0 ? `+ ${formatCurrency(p.pending)}` : formatCurrency(0)}
               color={p.pending > 0 ? STATUS.good : undefined}
             />

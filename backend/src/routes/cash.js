@@ -63,26 +63,12 @@ router.get('/', async (req, res) => {
     .sort((a, b) => new Date(a.date) - new Date(b.date));
   const upcomingIncomesTotal = round2(sum(upcomingIncomes, 'amount'));
 
-  // O que os outros ainda vão te mandar (Pix/Flash do período) — desconta
-  // o que já abateram (abatimento já recebido), por segurança: contar a
-  // dívida cheia de novo superestimaria o que vai entrar.
+  // O que os outros ainda vão te mandar (Pix/Flash do período). Os
+  // abatimentos já recebidos são de dívidas de cartão, não desses Pix/Flash,
+  // então NÃO descontam daqui.
   const people = data.owedByPerson.map((p) => {
     const owed = round2(p.total);
-    const received = round2(
-      sum(
-        data.payments.filter((pay) => pay.personId === p.id && new Date(pay.date) <= now),
-        'amount',
-      ),
-    );
-    return {
-      id: p.id,
-      name: p.name,
-      icon: p.icon,
-      color: p.color,
-      owed,
-      received,
-      pending: Math.max(round2(owed - received), 0),
-    };
+    return { id: p.id, name: p.name, icon: p.icon, color: p.color, owed, pending: owed };
   });
   const othersPending = round2(sum(people, 'pending'));
 
@@ -123,7 +109,7 @@ router.get('/', async (req, res) => {
     incoming: {
       incomes: upcomingIncomes,
       incomesTotal: upcomingIncomesTotal,
-      others: { people, pending: othersPending, owed: round2(sum(people, 'owed')), received: round2(sum(people, 'received')) },
+      others: { people, pending: othersPending, owed: round2(sum(people, 'owed')) },
     },
     outgoing: { cards, other: cardsOther, total: outgoingTotal },
     result: { readyNow, freeAfterSeparating, finalWithOthers, finalWithoutOthers },
